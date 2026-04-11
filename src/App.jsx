@@ -1,30 +1,55 @@
 import "./index.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 import LoginSignup from "./pages/LoginSignup";
+import Home from "./pages/Home";
+import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 
 function App() {
-	const testConnection = async () => {
-		const { data, error } = await supabase
-			.from("jobs")
-			.select("*")
-			.limit(5);
+	let [session, setSession] = useState(null);
+	let [loading, setLoading] = useState(true);
+	const location = useLocation();
 
-		if (error) {
-			console.error(error);
-			toast.error("Supabase error");
-		} else {
-			console.log(data);
-			toast.success("Supabase connected!");
-		}
-	};
+	useEffect(() => {
+		supabase.auth.getSession().then(({ data }) => {
+			setSession(data.session);
+			setLoading(false);
+		});
+
+		let { data: listener } = supabase.auth.onAuthStateChange(
+			(_event, supabaseSession) => {
+				setSession(supabaseSession);
+			},
+		);
+
+		return () => {
+			listener.subscription.unsubscribe();
+		};
+	}, []);
+
+	if (loading) return <p>Loading...</p>;
 
 	return (
 		<div>
 			<Toaster position="top-center" />
 
-			<LoginSignup></LoginSignup>
+			<Routes location={location} key={location.pathname}>
+				<Route
+					path="/"
+					element={
+						!session ? (
+							<LoginSignup></LoginSignup>
+						) : (
+							<Navigate to="/home" />
+						)
+					}
+				/>
+				<Route
+					path="/home"
+					element={session ? <Home></Home> : <Navigate to="/" />}
+				/>
+			</Routes>
 		</div>
 	);
 }

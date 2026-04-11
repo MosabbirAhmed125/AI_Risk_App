@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Eye, EyeOff, User, BrainCircuit } from "lucide-react";
+import { Eye, EyeOff, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
+import toast from "react-hot-toast";
 import Logo from "../components/Logo";
 
 export default function LoginSignup() {
@@ -9,21 +12,170 @@ export default function LoginSignup() {
 	const [showLoginPassword, setShowLoginPassword] = useState(false);
 	const [showSignupPassword, setShowSignupPassword] = useState(false);
 
+	const [loginEmail, setLoginEmail] = useState("");
+	const [loginPassword, setLoginPassword] = useState("");
+	const [signupEmail, setSignupEmail] = useState("");
+	const [signupPassword, setSignupPassword] = useState("");
+
+	const [loginLoading, setLoginLoading] = useState(false);
+	const [signupLoading, setSignupLoading] = useState(false);
+
+	const navigate = useNavigate();
+
 	const panelTransition = {
 		type: "spring",
 		stiffness: 260,
 		damping: 28,
 	};
 
+	const handleLogin = async (event) => {
+		event.preventDefault();
+
+		if (!loginEmail || !loginPassword) {
+			toast.error("Please enter email and password");
+			return;
+		}
+
+		setLoginLoading(true);
+
+		const { error } = await supabase.auth.signInWithPassword({
+			email: loginEmail,
+			password: loginPassword,
+		});
+
+		setLoginLoading(false);
+
+		if (error) {
+			toast.error(error.message);
+			setLoginEmail("");
+			setLoginPassword("");
+			return;
+		}
+
+		toast.success("Login successful!");
+		navigate("/home");
+	};
+
+	const handleSignup = async (event) => {
+		event.preventDefault();
+
+		if (!signupEmail || !signupPassword) {
+			toast.error("Please fill in all fields");
+			return;
+		}
+
+		if (!selectedRole) {
+			toast.error("Please select an account type");
+			return;
+		}
+
+		setSignupLoading(true);
+
+		const roleValue = selectedRole === "job" ? "job_seeker" : "enterprise";
+
+		const { data: authData, error: authError } = await supabase.auth.signUp(
+			{
+				email: signupEmail,
+				password: signupPassword,
+			},
+		);
+
+		if (authError) {
+			setSignupLoading(false);
+			toast.error(authError.message);
+			return;
+		}
+
+		const userId = authData?.user?.id;
+
+		if (!userId) {
+			setSignupLoading(false);
+			toast.error("User account could not be created");
+			return;
+		}
+
+		const { error: profileError } = await supabase.from("profiles").insert([
+			{
+				id: userId,
+				role: roleValue,
+			},
+		]);
+
+		if (profileError) {
+			setSignupLoading(false);
+			toast.error(profileError.message);
+			return;
+		}
+
+		let secondaryTableError = null;
+
+		if (roleValue === "job_seeker") {
+			const { error } = await supabase.from("job_seekers").insert([
+				{
+					user_id: userId,
+				},
+			]);
+			secondaryTableError = error;
+		} else {
+			const { error } = await supabase.from("enterprises").insert([
+				{
+					user_id: userId,
+				},
+			]);
+			secondaryTableError = error;
+		}
+
+		if (secondaryTableError) {
+			setSignupLoading(false);
+			toast.error(secondaryTableError.message);
+			return;
+		}
+
+		setSignupLoading(false);
+		toast.success("Account created successfully!");
+
+		setSignupEmail("");
+		setSignupPassword("");
+		setSelectedRole("");
+		setShowSignupPassword(false);
+		setIsSignup(false);
+	};
+
 	return (
-		<div className="min-h-screen w-full bg-cod-gray-900 font-ubuntu font-bold flex items-center justify-center px-4">
-			<div
-				className={
-					`relative w-180 max-w-full min-h-105 overflow-hidden rounded-[18px] bg-cod-gray-100 transition-shadow duration-500` +
-					(isSignup
-						? " shadow-[0_0_0_0_#40969a44,0_0_48px_16px_#40969a44,0_0_96px_32px_#40969a22]"
-						: " shadow-[0_0_0_0_#d7433944,0_0_48px_16px_#d7433944,0_0_96px_32px_#d7433922]")
-				}
+		<div className="min-h-screen w-full bg-shark-900 font-ubuntu font-bold flex items-center justify-center px-4">
+			<motion.div
+				initial={{ opacity: 0, y: 24, scale: 0.97 }}
+				animate={{
+					opacity: 1,
+					y: 0,
+					scale: 1,
+					rotateX: 0,
+					rotateY: isSignup ? -1.2 : 1.2,
+					boxShadow: isSignup
+						? [
+								"0 0 0 0 rgba(64,150,154,0.20), 0 0 32px 8px rgba(64,150,154,0.20), 0 0 72px 20px rgba(64,150,154,0.10)",
+								"0 0 0 0 rgba(64,150,154,0.28), 0 0 48px 16px rgba(64,150,154,0.30), 0 0 96px 30px rgba(64,150,154,0.16)",
+								"0 0 0 0 rgba(64,150,154,0.20), 0 0 32px 8px rgba(64,150,154,0.20), 0 0 72px 20px rgba(64,150,154,0.10)",
+							]
+						: [
+								"0 0 0 0 rgba(215,67,57,0.20), 0 0 32px 8px rgba(215,67,57,0.20), 0 0 72px 20px rgba(215,67,57,0.10)",
+								"0 0 0 0 rgba(215,67,57,0.28), 0 0 48px 16px rgba(215,67,57,0.30), 0 0 96px 30px rgba(215,67,57,0.16)",
+								"0 0 0 0 rgba(215,67,57,0.20), 0 0 32px 8px rgba(215,67,57,0.20), 0 0 72px 20px rgba(215,67,57,0.10)",
+							],
+				}}
+				transition={{
+					opacity: { duration: 0.45, ease: "easeOut" },
+					y: { duration: 0.45, ease: "easeOut" },
+					scale: { duration: 0.45, ease: "easeOut" },
+					rotateY: { duration: 0.6, ease: "easeInOut" },
+					boxShadow: {
+						duration: 2.2,
+						repeat: Infinity,
+						ease: "easeInOut",
+					},
+				}}
+				style={{ transformStyle: "preserve-3d" }}
+				className="relative w-180 max-w-full min-h-105 overflow-hidden rounded-[18px] bg-shark-200"
 			>
 				<motion.div
 					animate={{ x: isSignup ? "100%" : "0%" }}
@@ -39,6 +191,7 @@ export default function LoginSignup() {
 									animate={{ opacity: 1, x: 0 }}
 									exit={{ opacity: 0, x: 20 }}
 									transition={{ duration: 0.25 }}
+									onSubmit={handleLogin}
 									className="w-full flex flex-col items-center gap-5"
 								>
 									<h1 className="text-[34px] font-borel font-bold text-shark-900">
@@ -47,10 +200,14 @@ export default function LoginSignup() {
 
 									<div className="relative w-full">
 										<input
-											type="text"
+											type="email"
 											placeholder="Email"
-											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-md font-bold text-shark-900 outline-none transition ease-in-out duration-300 
-											focus:bg-shark-400/60 placeholder:text-shark-500"
+											value={loginEmail}
+											onChange={(e) =>
+												setLoginEmail(e.target.value)
+											}
+											required
+											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-md font-bold text-shark-900 outline-none transition ease-in-out duration-300 focus:bg-shark-400/60 placeholder:text-shark-500"
 										/>
 										<span className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900">
 											<User size={18} strokeWidth={2} />
@@ -65,6 +222,11 @@ export default function LoginSignup() {
 													: "password"
 											}
 											placeholder="Password"
+											value={loginPassword}
+											onChange={(e) =>
+												setLoginPassword(e.target.value)
+											}
+											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-md font-bold text-shark-900 outline-none transition focus:bg-shark-400/50 placeholder:text-shark-500"
 										/>
 										<button
@@ -74,7 +236,7 @@ export default function LoginSignup() {
 													(prev) => !prev,
 												)
 											}
-											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center rounded-lg bg-valencia-600 text-shark-200 transition ease-in-out duration-300  hover:shadow-lg hover:shadow-valencia-600/70"
+											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center rounded-lg bg-valencia-600 text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:shadow-valencia-600/70"
 										>
 											{showLoginPassword ? (
 												<EyeOff
@@ -92,19 +254,18 @@ export default function LoginSignup() {
 
 									<button
 										type="submit"
-										className="w-full rounded-lg bg-valencia-600 py-3 text-xl font-bold 
-										text-shark-200 transition ease-in-out duration-300 hover:scale-103 
-										hover:shadow-lg hover:shadow-valencia-600/70"
+										disabled={loginLoading}
+										className="w-full rounded-lg bg-valencia-600 py-3 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-valencia-600/70 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
 									>
-										Login
+										{loginLoading
+											? "Logging in..."
+											: "Login"}
 									</button>
 
 									<button
 										type="button"
 										onClick={() => setIsSignup(true)}
-										className="w-full rounded-lg bg-aqua-island-500 py-3 text-xl font-bold 
-										text-shark-200 transition ease-in-out duration-300 hover:scale-103
-										hover:shadow-lg hover:shadow-aqua-island-500/70"
+										className="w-full rounded-lg bg-aqua-island-500 py-3 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-aqua-island-500/70"
 									>
 										Signup
 									</button>
@@ -133,6 +294,7 @@ export default function LoginSignup() {
 									animate={{ opacity: 1, x: 0 }}
 									exit={{ opacity: 0, x: -20 }}
 									transition={{ duration: 0.25 }}
+									onSubmit={handleSignup}
 									className="w-full flex flex-col items-center gap-5"
 								>
 									<h1 className="text-[34px] font-borel font-bold text-shark-900">
@@ -143,6 +305,11 @@ export default function LoginSignup() {
 										<input
 											type="email"
 											placeholder="Email"
+											value={signupEmail}
+											onChange={(e) =>
+												setSignupEmail(e.target.value)
+											}
+											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-sm font-bold text-shark-900 outline-none transition ease-in-out duration-300 focus:bg-shark-400/60 placeholder:text-shark-500"
 										/>
 										<span className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900">
@@ -158,6 +325,13 @@ export default function LoginSignup() {
 													: "password"
 											}
 											placeholder="Password"
+											value={signupPassword}
+											onChange={(e) =>
+												setSignupPassword(
+													e.target.value,
+												)
+											}
+											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-sm font-bold text-shark-900 outline-none transition ease-in-out duration-300 focus:bg-shark-400/60 placeholder:text-shark-500"
 										/>
 										<button
@@ -188,7 +362,7 @@ export default function LoginSignup() {
 										onClick={() => setSelectedRole("job")}
 										className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-bold transition ease-in-out duration-300 ${
 											selectedRole === "job"
-												? "bg-aqua-island-500 text-shark-900 shadow-[0_3px_14px_rgba(64,150,154,0.35)]"
+												? "bg-aqua-island-500 text-shark-200 shadow-[0_3px_14px_rgba(64,150,154,0.35)]"
 												: "bg-shark-300 text-shark-700 hover:bg-shark-400/60"
 										}`}
 									>
@@ -207,7 +381,7 @@ export default function LoginSignup() {
 										onClick={() => setSelectedRole("ent")}
 										className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-bold transition ease-in-out duration-300 ${
 											selectedRole === "ent"
-												? "bg-aqua-island-500 text-shark-900 shadow-[0_3px_14px_rgba(64,150,154,0.35)]"
+												? "bg-aqua-island-500 text-shark-200 shadow-[0_3px_14px_rgba(64,150,154,0.35)]"
 												: "bg-shark-300 text-shark-700 hover:bg-shark-400/60"
 										}`}
 									>
@@ -224,19 +398,24 @@ export default function LoginSignup() {
 									<div className="flex w-full gap-5">
 										<button
 											type="submit"
-											className="flex-1 rounded-lg h-12 bg-aqua-island-500 text-xl 
-											font-bold text-shark-200 transition ease-in-out duration-300
-											hover:shadow-lg hover:scale-103 hover:shadow-aqua-island-500/70"
+											disabled={signupLoading}
+											className="flex-1 rounded-lg h-12 bg-aqua-island-500 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:scale-103 hover:shadow-aqua-island-500/70 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
 										>
-											Signup
+											{signupLoading
+												? "Creating..."
+												: "Signup"}
 										</button>
 
 										<button
 											type="button"
-											onClick={() => setIsSignup(false)}
-											className="flex-1 rounded-lg h-12 bg-valencia-600 text-xl
-											font-bold text-shark-200 transition ease-in-out duration-300
-											hover:shadow-lg hover:scale-103 hover:shadow-valencia-600/70"
+											onClick={() => {
+												setIsSignup(false);
+												setSelectedRole("");
+												setSignupEmail("");
+												setSignupPassword("");
+												setShowSignupPassword(false);
+											}}
+											className="flex-1 rounded-lg h-12 bg-valencia-600 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:scale-103 hover:shadow-valencia-600/70"
 										>
 											Login
 										</button>
@@ -263,23 +442,57 @@ export default function LoginSignup() {
 						className="relative -left-full h-full w-[200%] rounded-[18px]"
 					>
 						<motion.div
-							animate={{ x: isSignup ? "100%" : "0%" }}
-							transition={panelTransition}
+							animate={{
+								x: isSignup ? "100%" : "0%",
+								y: [0, -5, 0],
+								scale: [1, 1.015, 1],
+							}}
+							transition={{
+								x: panelTransition,
+								y: {
+									duration: 3.2,
+									repeat: Infinity,
+									ease: "easeInOut",
+								},
+								scale: {
+									duration: 3.2,
+									repeat: Infinity,
+									ease: "easeInOut",
+								},
+							}}
 							className="absolute top-0 left-0 flex h-full w-1/2 items-center justify-center"
 						>
 							<Logo />
 						</motion.div>
 
 						<motion.div
-							animate={{ x: isSignup ? "100%" : "0%" }}
-							transition={panelTransition}
+							animate={{
+								x: isSignup ? "100%" : "0%",
+								y: [0, -5, 0],
+								scale: [1, 1.015, 1],
+							}}
+							transition={{
+								x: panelTransition,
+								y: {
+									duration: 3.2,
+									repeat: Infinity,
+									ease: "easeInOut",
+									delay: 0.2,
+								},
+								scale: {
+									duration: 3.2,
+									repeat: Infinity,
+									ease: "easeInOut",
+									delay: 0.2,
+								},
+							}}
 							className="absolute top-0 right-0 flex h-full w-1/2 items-center justify-center"
 						>
 							<Logo />
 						</motion.div>
 					</motion.div>
 				</motion.div>
-			</div>
+			</motion.div>
 		</div>
 	);
 }
