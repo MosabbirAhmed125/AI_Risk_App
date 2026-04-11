@@ -28,6 +28,25 @@ export default function LoginSignup() {
 		damping: 28,
 	};
 
+	const formContainerVariants = {
+		hidden: {},
+		show: {
+			transition: {
+				staggerChildren: 0.06,
+				delayChildren: 0.05,
+			},
+		},
+	};
+
+	const formItemVariants = {
+		hidden: { opacity: 0, y: 10 },
+		show: {
+			opacity: 1,
+			y: 0,
+			transition: { duration: 0.25, ease: "easeOut" },
+		},
+	};
+
 	const handleLogin = async (event) => {
 		event.preventDefault();
 
@@ -187,19 +206,24 @@ export default function LoginSignup() {
 							{!isSignup && (
 								<motion.form
 									key="login-form"
-									initial={{ opacity: 0, x: -20 }}
-									animate={{ opacity: 1, x: 0 }}
+									initial="hidden"
+									animate="show"
 									exit={{ opacity: 0, x: 20 }}
-									transition={{ duration: 0.25 }}
+									variants={formContainerVariants}
 									onSubmit={handleLogin}
 									className="w-full flex flex-col items-center gap-5"
 								>
-									<h1 className="text-[34px] font-borel font-bold text-shark-900">
+									<motion.h1
+										className="text-[34px] font-borel font-bold text-shark-900"
+										variants={formItemVariants}
+									>
 										login
-									</h1>
-
-									<div className="relative w-full">
-										<input
+									</motion.h1>
+									<motion.div
+										variants={formItemVariants}
+										className="relative w-full"
+									>
+										<motion.input
 											type="email"
 											placeholder="Email"
 											value={loginEmail}
@@ -208,14 +232,20 @@ export default function LoginSignup() {
 											}
 											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-md font-bold text-shark-900 outline-none transition ease-in-out duration-300 focus:bg-shark-400/60 placeholder:text-shark-500"
+											variants={formItemVariants}
 										/>
-										<span className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900">
+										<motion.span
+											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900"
+											variants={formItemVariants}
+										>
 											<User size={18} strokeWidth={2} />
-										</span>
-									</div>
-
-									<div className="relative w-full">
-										<input
+										</motion.span>
+									</motion.div>
+									<motion.div
+										className="relative w-full"
+										variants={formItemVariants}
+									>
+										<motion.input
 											type={
 												showLoginPassword
 													? "text"
@@ -228,8 +258,9 @@ export default function LoginSignup() {
 											}
 											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-md font-bold text-shark-900 outline-none transition focus:bg-shark-400/50 placeholder:text-shark-500"
+											variants={formItemVariants}
 										/>
-										<button
+										<motion.button
 											type="button"
 											onClick={() =>
 												setShowLoginPassword(
@@ -237,6 +268,7 @@ export default function LoginSignup() {
 												)
 											}
 											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center rounded-lg bg-valencia-600 text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:shadow-valencia-600/70"
+											variants={formItemVariants}
 										>
 											{showLoginPassword ? (
 												<EyeOff
@@ -249,60 +281,62 @@ export default function LoginSignup() {
 													strokeWidth={2}
 												/>
 											)}
-										</button>
-									</div>
-
-									<button
+										</motion.button>
+									</motion.div>
+									<motion.button
 										type="submit"
 										disabled={loginLoading}
 										className="w-full rounded-lg bg-valencia-600 py-3 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-valencia-600/70 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+										variants={formItemVariants}
 									>
 										{loginLoading
 											? "Logging in..."
 											: "Login"}
-									</button>
-
-									<button
+									</motion.button>
+									<motion.button
 										type="button"
 										onClick={() => setIsSignup(true)}
 										className="w-full rounded-lg bg-aqua-island-500 py-3 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-aqua-island-500/70"
+										variants={formItemVariants}
 									>
 										Signup
-									</button>
+									</motion.button>
 								</motion.form>
 							)}
 						</AnimatePresence>
 					</div>
 				</motion.div>
-
 				<motion.div
 					animate={{
 						x: isSignup ? "100%" : "0%",
 						opacity: isSignup ? 1 : 0,
 					}}
 					transition={panelTransition}
-					className={`absolute top-0 left-0 z-30 h-full w-1/2 ${
-						isSignup ? "pointer-events-auto" : "pointer-events-none"
-					}`}
+					className={`absolute top-0 left-0 z-30 h-full w-1/2 ${isSignup ? "pointer-events-auto" : "pointer-events-none"}`}
 				>
 					<div className="h-full w-full bg-shark-200 px-10 py-11 flex flex-col items-center justify-center text-center">
 						<AnimatePresence mode="wait">
 							{isSignup && (
 								<motion.form
 									key="signup-form"
-									initial={{ opacity: 0, x: 20 }}
-									animate={{ opacity: 1, x: 0 }}
+									initial="hidden"
+									animate="show"
 									exit={{ opacity: 0, x: -20 }}
-									transition={{ duration: 0.25 }}
+									variants={formContainerVariants}
 									onSubmit={handleSignup}
 									className="w-full flex flex-col items-center gap-5"
 								>
-									<h1 className="text-[34px] font-borel font-bold text-shark-900">
+									<motion.h1
+										className="text-[34px] font-borel font-bold text-shark-900"
+										variants={formItemVariants}
+									>
 										signup
-									</h1>
-
-									<div className="relative w-full">
-										<input
+									</motion.h1>
+									<motion.div
+										className="relative w-full"
+										variants={formItemVariants}
+									>
+										<motion.input
 											type="email"
 											placeholder="Email"
 											value={signupEmail}
@@ -311,14 +345,20 @@ export default function LoginSignup() {
 											}
 											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-sm font-bold text-shark-900 outline-none transition ease-in-out duration-300 focus:bg-shark-400/60 placeholder:text-shark-500"
+											variants={formItemVariants}
 										/>
-										<span className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900">
+										<motion.span
+											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900"
+											variants={formItemVariants}
+										>
 											<User size={18} strokeWidth={2} />
-										</span>
-									</div>
-
-									<div className="relative w-full">
-										<input
+										</motion.span>
+									</motion.div>
+									<motion.div
+										className="relative w-full"
+										variants={formItemVariants}
+									>
+										<motion.input
 											type={
 												showSignupPassword
 													? "text"
@@ -333,8 +373,9 @@ export default function LoginSignup() {
 											}
 											required
 											className="w-full rounded-lg border-none bg-shark-300 py-2.75 pl-4 pr-12 text-sm font-bold text-shark-900 outline-none transition ease-in-out duration-300 focus:bg-shark-400/60 placeholder:text-shark-500"
+											variants={formItemVariants}
 										/>
-										<button
+										<motion.button
 											type="button"
 											onClick={() =>
 												setShowSignupPassword(
@@ -342,6 +383,7 @@ export default function LoginSignup() {
 												)
 											}
 											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center rounded-lg bg-aqua-island-500 text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:shadow-aqua-island-500/70"
+											variants={formItemVariants}
 										>
 											{showSignupPassword ? (
 												<EyeOff
@@ -354,59 +396,47 @@ export default function LoginSignup() {
 													strokeWidth={2}
 												/>
 											)}
-										</button>
-									</div>
-
-									<button
+										</motion.button>
+									</motion.div>
+									<motion.button
 										type="button"
 										onClick={() => setSelectedRole("job")}
-										className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-bold transition ease-in-out duration-300 ${
-											selectedRole === "job"
-												? "bg-aqua-island-500 text-shark-200 shadow-[0_3px_14px_rgba(64,150,154,0.35)]"
-												: "bg-shark-300 text-shark-700 hover:bg-shark-400/60"
-										}`}
+										className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-bold transition ease-in-out duration-300 ${selectedRole === "job" ? "bg-aqua-island-500 text-shark-200 shadow-[0_3px_14px_rgba(64,150,154,0.35)]" : "bg-shark-300 text-shark-700 hover:bg-shark-400/60"}`}
+										variants={formItemVariants}
 									>
-										<span
-											className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-												selectedRole === "job"
-													? "border-shark-900 bg-shark-900"
-													: "border-aqua-island-500 bg-transparent"
-											}`}
+										<motion.span
+											className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selectedRole === "job" ? "border-shark-900 bg-shark-900" : "border-aqua-island-500 bg-transparent"}`}
+											variants={formItemVariants}
 										/>
 										Job Seeker / Job Holder
-									</button>
-
-									<button
+									</motion.button>
+									<motion.button
 										type="button"
 										onClick={() => setSelectedRole("ent")}
-										className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-bold transition ease-in-out duration-300 ${
-											selectedRole === "ent"
-												? "bg-aqua-island-500 text-shark-200 shadow-[0_3px_14px_rgba(64,150,154,0.35)]"
-												: "bg-shark-300 text-shark-700 hover:bg-shark-400/60"
-										}`}
+										className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-bold transition ease-in-out duration-300 ${selectedRole === "ent" ? "bg-aqua-island-500 text-shark-200 shadow-[0_3px_14px_rgba(64,150,154,0.35)]" : "bg-shark-300 text-shark-700 hover:bg-shark-400/60"}`}
+										variants={formItemVariants}
 									>
-										<span
-											className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-												selectedRole === "ent"
-													? "border-shark-900 bg-shark-900"
-													: "border-aqua-island-500 bg-transparent"
-											}`}
+										<motion.span
+											className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selectedRole === "ent" ? "border-shark-900 bg-shark-900" : "border-aqua-island-500 bg-transparent"}`}
+											variants={formItemVariants}
 										/>
 										Enterprise / Company
-									</button>
-
-									<div className="flex w-full gap-5">
-										<button
+									</motion.button>
+									<motion.div
+										className="flex w-full gap-5"
+										variants={formItemVariants}
+									>
+										<motion.button
 											type="submit"
 											disabled={signupLoading}
 											className="flex-1 rounded-lg h-12 bg-aqua-island-500 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:scale-103 hover:shadow-aqua-island-500/70 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+											variants={formItemVariants}
 										>
 											{signupLoading
 												? "Creating..."
 												: "Signup"}
-										</button>
-
-										<button
+										</motion.button>
+										<motion.button
 											type="button"
 											onClick={() => {
 												setIsSignup(false);
@@ -416,10 +446,11 @@ export default function LoginSignup() {
 												setShowSignupPassword(false);
 											}}
 											className="flex-1 rounded-lg h-12 bg-valencia-600 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:scale-103 hover:shadow-valencia-600/70"
+											variants={formItemVariants}
 										>
 											Login
-										</button>
-									</div>
+										</motion.button>
+									</motion.div>
 								</motion.form>
 							)}
 						</AnimatePresence>
