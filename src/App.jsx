@@ -2,6 +2,7 @@ import "./index.css";
 import { useEffect } from "react";
 import { supabase } from "./lib/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
+import LoginSignup from "./pages/LoginSignup";
 
 function App() {
 	const testConnection = async () => {
@@ -20,24 +21,10 @@ function App() {
 	};
 
 	return (
-		<div className="bg-cod-gray-900 h-screen flex flex-col items-center justify-center">
+		<div>
 			<Toaster position="top-center" />
 
-			<p className="font-ubuntu text-5xl font-bold text-pearl-bush-200">
-				AI Job Risk App
-			</p>
-
-			<br />
-			<br />
-
-			<button
-				onClick={testConnection}
-				className="bg-elephant-600 text-2xl font-ubuntu font-bold
-				text-pearl-bush-200 h-12 w-55 p-2 rounded-xl hover:bg-pearl-bush-200 hover:text-elephant-600 
-				hover:shadow-xl hover:shadow-elephant-600 transition delay-75 duration-150 ease-in-out hover:scale-110"
-			>
-				Check Supabase
-			</button>
+			<LoginSignup></LoginSignup>
 		</div>
 	);
 }
