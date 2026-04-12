@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 
-function Home() {
+function JobSeekerDashboard() {
 	const navigate = useNavigate();
 
 	const testConnection = async () => {
@@ -64,4 +64,4 @@ function Home() {
 	);
 }
 
-export default Home;
+export default JobSeekerDashboard;

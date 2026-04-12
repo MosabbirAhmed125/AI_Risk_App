@@ -161,7 +161,7 @@ export default function LoginSignup() {
 	};
 
 	return (
-		<div className="min-h-screen w-full bg-shark-900 font-ubuntu font-bold flex items-center justify-center px-4">
+		<div className="min-h-screen w-full bg-[radial-gradient(ellipse_at_top,var(--color-shark-800),var(--color-shark-900),var(--color-shark-950))] bg-no-repeat font-ubuntu font-bold flex items-center justify-center px-4">
 			<motion.div
 				initial={{ opacity: 0, y: 24, scale: 0.97 }}
 				animate={{
