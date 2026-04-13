@@ -71,8 +71,32 @@ export default function LoginSignup() {
 			return;
 		}
 
+		const {
+			data: { user },
+		} = await supabase.auth.getUser();
+
+		const { data: profile, error: profileError } = await supabase
+			.from("profiles")
+			.select("role")
+			.eq("id", user.id)
+			.single();
+
+		if (profileError || !profile) {
+			toast.error("Could not fetch user role");
+			return;
+		}
+
 		toast.success("Login successful!");
-		navigate("/home");
+
+		if (profile.role === "job_seeker") {
+			navigate("/job-seeker-home");
+		} else if (profile.role === "enterprise") {
+			navigate("/enterprise-home");
+		} else if (profile.role === "admin") {
+			navigate("/admin");
+		} else {
+			navigate("/");
+		}
 	};
 
 	const handleSignup = async (event) => {
@@ -151,7 +175,7 @@ export default function LoginSignup() {
 		}
 
 		setSignupLoading(false);
-		toast.success("Account created successfully!");
+		toast.success("Account created successfully! Please log in.");
 
 		setSignupEmail("");
 		setSignupPassword("");
@@ -177,9 +201,9 @@ export default function LoginSignup() {
 								"0 0 0 0 rgba(64,150,154,0.20), 0 0 32px 8px rgba(64,150,154,0.20), 0 0 72px 20px rgba(64,150,154,0.10)",
 							]
 						: [
-								"0 0 0 0 rgba(215,67,57,0.20), 0 0 32px 8px rgba(215,67,57,0.20), 0 0 72px 20px rgba(215,67,57,0.10)",
-								"0 0 0 0 rgba(215,67,57,0.28), 0 0 48px 16px rgba(215,67,57,0.30), 0 0 96px 30px rgba(215,67,57,0.16)",
-								"0 0 0 0 rgba(215,67,57,0.20), 0 0 32px 8px rgba(215,67,57,0.20), 0 0 72px 20px rgba(215,67,57,0.10)",
+								"0 0 0 0 rgba(214,44,57,0.20), 0 0 32px 8px rgba(214,44,57,0.20), 0 0 72px 20px rgba(214,44,57,0.10)",
+								"0 0 0 0 rgba(214,44,57,0.28), 0 0 48px 16px rgba(214,44,57,0.30), 0 0 96px 30px rgba(214,44,57,0.16)",
+								"0 0 0 0 rgba(214,44,57,0.20), 0 0 32px 8px rgba(214,44,57,0.20), 0 0 72px 20px rgba(214,44,57,0.10)",
 							],
 				}}
 				transition={{
@@ -267,7 +291,7 @@ export default function LoginSignup() {
 													(prev) => !prev,
 												)
 											}
-											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center rounded-lg bg-valencia-600 text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:shadow-valencia-600/70"
+											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center rounded-lg bg-red-ribbon-600 text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:shadow-red-ribbon-600/70"
 											variants={formItemVariants}
 										>
 											{showLoginPassword ? (
@@ -286,7 +310,7 @@ export default function LoginSignup() {
 									<motion.button
 										type="submit"
 										disabled={loginLoading}
-										className="w-full rounded-lg bg-valencia-600 py-3 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-valencia-600/70 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+										className="w-full rounded-lg bg-red-ribbon-600 py-3 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-red-ribbon-600/70 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
 										variants={formItemVariants}
 									>
 										{loginLoading
@@ -445,7 +469,7 @@ export default function LoginSignup() {
 												setSignupPassword("");
 												setShowSignupPassword(false);
 											}}
-											className="flex-1 rounded-lg h-12 bg-valencia-600 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:scale-103 hover:shadow-valencia-600/70"
+											className="flex-1 rounded-lg h-12 bg-red-ribbon-600 text-xl font-bold text-shark-200 transition ease-in-out duration-300 hover:shadow-lg hover:scale-103 hover:shadow-red-ribbon-600/70"
 											variants={formItemVariants}
 										>
 											Login
@@ -464,10 +488,10 @@ export default function LoginSignup() {
 				>
 					<motion.div
 						animate={{
-							backgroundColor: isSignup ? "#40969a" : "#d74339",
+							backgroundColor: isSignup ? "#40969a" : "#d62c39",
 							boxShadow: isSignup
 								? "0 20px 25px -5px rgba(64, 150, 154, 0.3)"
-								: "0 20px 25px -5px rgba(215, 67, 57, 0.3)",
+								: "0 20px 25px -5px rgba(214, 44, 57, 0.3)",
 						}}
 						transition={{ duration: 0.45 }}
 						className="relative -left-full h-full w-[200%] rounded-[18px]"

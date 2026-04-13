@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import JobSeekerSidebar from "../components/JobSeekerSidebar";
 
-function Recommendations() {
+function JobSeekerHome() {
 	const navigate = useNavigate();
 
 	const testConnection = async () => {
@@ -42,7 +42,7 @@ function Recommendations() {
 			<br />
 			<br />
 			<button
-				className="font-bold font-ubuntu text-shark-200 text-2xl bg-cello-500 bg-center rounded-lg py-3 px-4 border-transparent transition delay-75 duration-300 ease-in-out hover:scale-110 hover:bg-shark-200 hover:text-cello-500 hover:shadow-cello-500/50 hover:shadow-xl w-60 h-16 cursor-pointer"
+				className="font-bold font-ubuntu text-shark-900 text-2xl bg-tree-poppy-400 bg-center rounded-lg py-3 px-4 border-transparent transition delay-75 duration-300 ease-in-out hover:scale-110 hover:bg-shark-200 hover:text-tree-poppy-400 hover:shadow-tree-poppy-400/50 hover:shadow-xl w-60 h-16 cursor-pointer"
 				onClick={testConnection}
 			>
 				Check Supabase
@@ -55,4 +55,4 @@ function Recommendations() {
 	);
 }
 
-export default Recommendations;
+export default JobSeekerHome;

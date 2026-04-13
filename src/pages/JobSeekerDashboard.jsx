@@ -3,6 +3,7 @@ import "../index.css";
 import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
+import JobSeekerSidebar from "../components/JobSeekerSidebar";
 
 function JobSeekerDashboard() {
 	const navigate = useNavigate();
@@ -20,12 +21,6 @@ function JobSeekerDashboard() {
 			console.log(data);
 			toast.success("Supabase connected!");
 		}
-	};
-
-	let handleLogout = async () => {
-		await supabase.auth.signOut();
-		toast.success("Successfully logged out!");
-		navigate("/");
 	};
 
 	return (
@@ -52,14 +47,10 @@ function JobSeekerDashboard() {
 			>
 				Check Supabase
 			</button>
-			<br />
-			<br />
-			<button
-				className="font-bold font-ubuntu text-shark-200 text-2xl bg-alizarin-crimson-600 bg-center rounded-lg py-3 px-4 border-transparent transition delay-75 duration-300 ease-in-out hover:scale-110 hover:bg-shark-200 hover:text-alizarin-crimson-600 hover:shadow-alizarin-crimson-600/50 hover:shadow-xl w-60 h-16 cursor-pointer"
-				onClick={handleLogout}
-			>
-				Logout
-			</button>
+
+			<div className="absolute left-0">
+				<JobSeekerSidebar></JobSeekerSidebar>
+			</div>
 		</motion.div>
 	);
 }
