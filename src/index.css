@@ -58,6 +58,34 @@
 	font-style: normal;
 }
 
+@font-face {
+	font-family: "Aquatico";
+	src: url("./assets/fonts/Aquatico.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Arkhip";
+	src: url("./assets/fonts/Arkhip.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Moon";
+	src: url("./assets/fonts/Moon.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Sequel";
+	src: url("./assets/fonts/Sequel.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+}
+
 @theme {
 	--font-ubuntu: "Ubuntu", sans-serif;
 	--font-bungee: "Bungee", sans-serif;
@@ -67,6 +95,10 @@
 	--font-major-mono-display: "Major Mono Display", monospace;
 	--font-phenomena: "Phenomena", sans-serif;
 	--font-tango: "Tango", cursive;
+	--font-aquatico: "Aquatico", sans-serif;
+	--font-arkhip: "Arkhip", sans-serif;
+	--font-moon: "Moon", sans-serif;
+	--font-sequel: "Sequel", sans-serif;
 }
 
 .scrollbar-hide {
