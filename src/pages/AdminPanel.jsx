@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import AdminSidebar from "../components/AdminSidebar";
+import AdminTable from "../components/AdminTable";
 
 function AdminPanel() {
 	const navigate = useNavigate();
@@ -39,14 +40,8 @@ function AdminPanel() {
             bg-no-repeat"
 		>
 			<p className="text-6xl font-borel text-shark-200">welcome!</p>
-			<br />
-			<br />
-			<button
-				className="font-bold font-ubuntu text-shark-900 text-2xl bg-lightning-yellow-600 bg-center rounded-lg py-3 px-4 border-transparent transition delay-75 duration-300 ease-in-out hover:scale-110 hover:bg-shark-200 hover:text-lightning-yellow-600 hover:shadow-lightning-yellow-600/50 hover:shadow-xl w-60 h-16 cursor-pointer"
-				onClick={testConnection}
-			>
-				Check Supabase
-			</button>
+			<br></br>
+			<AdminTable></AdminTable>
 
 			<div className="absolute left-0">
 				<AdminSidebar></AdminSidebar>

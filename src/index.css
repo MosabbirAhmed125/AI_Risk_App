@@ -69,6 +69,15 @@
 	--font-tango: "Tango", cursive;
 }
 
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+
 @theme {
 	--color-cod-gray-50: #f9fafa;
 	--color-cod-gray-100: #f4f5f5;
