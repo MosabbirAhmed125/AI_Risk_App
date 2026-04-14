@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, User } from "lucide-react";
+import { Eye, EyeOff, User, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
@@ -262,7 +262,7 @@ export default function LoginSignup() {
 											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900"
 											variants={formItemVariants}
 										>
-											<User size={18} strokeWidth={2} />
+											<Mail size={18} strokeWidth={2} />
 										</motion.span>
 									</motion.div>
 									<motion.div
@@ -375,7 +375,7 @@ export default function LoginSignup() {
 											className="absolute inset-y-0 right-0 flex w-10.5 items-center justify-center text-shark-900"
 											variants={formItemVariants}
 										>
-											<User size={18} strokeWidth={2} />
+											<Mail size={18} strokeWidth={2} />
 										</motion.span>
 									</motion.div>
 									<motion.div

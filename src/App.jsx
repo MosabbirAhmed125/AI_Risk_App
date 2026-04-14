@@ -24,68 +24,114 @@ function App() {
 	const [session, setSession] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [roleLoading, setRoleLoading] = useState(false);
-	const [userRole, setUserRole] = useState(null);
-	const location = useLocation();
+	const [userRole, setUserRole] = useState(
+		() => localStorage.getItem("userRole") || null,
+	);
 
 	const fetchUserRole = async (userId) => {
-		setRoleLoading(true);
+		try {
+			setRoleLoading(true);
 
-		const { data, error } = await supabase
-			.from("profiles")
-			.select("role")
-			.eq("id", userId)
-			.single();
+			const { data, error } = await supabase
+				.from("profiles")
+				.select("role")
+				.eq("id", userId)
+				.single();
 
-		if (error || !data?.role) {
-			console.error("Role fetch error:", error);
+			if (error || !data?.role) {
+				console.error("Role fetch error:", error);
+				setUserRole(null);
+				localStorage.removeItem("userRole");
+				return null;
+			}
+
+			setUserRole(data.role);
+			localStorage.setItem("userRole", data.role);
+			return data.role;
+		} catch (error) {
+			console.error("Unexpected role fetch error:", error);
 			setUserRole(null);
+			localStorage.removeItem("userRole");
+			return null;
+		} finally {
 			setRoleLoading(false);
-			return;
 		}
-
-		setUserRole(data.role);
-		setRoleLoading(false);
 	};
 
 	useEffect(() => {
+		let isMounted = true;
+
 		const initializeAuth = async () => {
-			const {
-				data: { session },
-			} = await supabase.auth.getSession();
+			try {
+				const {
+					data: { session: currentSession },
+					error,
+				} = await supabase.auth.getSession();
 
-			setSession(session);
+				if (!isMounted) return;
 
-			if (session?.user?.id) {
-				await fetchUserRole(session.user.id);
-			} else {
+				if (error) {
+					console.error("Session fetch error:", error);
+					setSession(null);
+					setUserRole(null);
+					localStorage.removeItem("userRole");
+					return;
+				}
+
+				setSession(currentSession);
+
+				if (currentSession?.user?.id) {
+					await fetchUserRole(currentSession.user.id);
+				} else {
+					setUserRole(null);
+					localStorage.removeItem("userRole");
+					setRoleLoading(false);
+				}
+			} catch (error) {
+				console.error("Unexpected auth init error:", error);
+				if (!isMounted) return;
+				setSession(null);
 				setUserRole(null);
+				localStorage.removeItem("userRole");
 				setRoleLoading(false);
+			} finally {
+				if (isMounted) {
+					setLoading(false);
+				}
 			}
-
-			setLoading(false);
 		};
 
 		initializeAuth();
 
 		const {
 			data: { subscription },
-		} = supabase.auth.onAuthStateChange((_event, supabaseSession) => {
+		} = supabase.auth.onAuthStateChange((event, supabaseSession) => {
+			if (!isMounted) return;
+
 			setSession(supabaseSession);
 
 			if (supabaseSession?.user?.id) {
 				fetchUserRole(supabaseSession.user.id);
 			} else {
 				setUserRole(null);
+				localStorage.removeItem("userRole");
 				setRoleLoading(false);
 			}
+
+			setLoading(false);
 		});
 
 		return () => {
+			isMounted = false;
 			subscription.unsubscribe();
 		};
 	}, []);
 
-	if (loading || (session && roleLoading)) {
+	useEffect(() => {
+		console.log("App mounted");
+	}, []);
+
+	if (loading) {
 		return (
 			<div className="h-screen flex flex-col items-center justify-center bg-shark-900">
 				<motion.div
@@ -155,7 +201,7 @@ function App() {
 		<div>
 			<Toaster position="top-center" toastOptions={toasterOptions} />
 
-			<Routes location={location} key={location.pathname}>
+			<Routes>
 				<Route
 					path="/"
 					element={
