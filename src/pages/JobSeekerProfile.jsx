@@ -19,50 +19,11 @@ import {
 	Lock,
 } from "lucide-react";
 import JobSeekerSidebar from "../components/JobSeekerSidebar";
+import { supabase } from "../lib/supabaseClient";
+import toast from "react-hot-toast";
 
-const LS_KEY = "jobseeker_profile";
-
-function loadProfile() {
-	try {
-		const raw = localStorage.getItem(LS_KEY);
-		return raw ? JSON.parse(raw) : null;
-	} catch {
-		return null;
-	}
-}
-
-function saveProfile(data) {
-	try {
-		localStorage.setItem(LS_KEY, JSON.stringify(data));
-	} catch {}
-}
-
-function SkillsSelector({ selectedSkills, setSelectedSkills }) {
-	const allSkills = useMemo(
-		() => [
-			"Python",
-			"JavaScript",
-			"Data Analysis",
-			"Project Management",
-			"UI/UX Design",
-			"SQL",
-			"React",
-			"Node.js",
-			"TypeScript",
-			"Figma",
-			"Machine Learning",
-			"Docker",
-			"AWS",
-			"GraphQL",
-			"Tailwind CSS",
-			"Next.js",
-			"PostgreSQL",
-			"Redis",
-			"Kubernetes",
-			"TensorFlow",
-		],
-		[],
-	);
+function SkillsSelector({ options, selectedSkills, setSelectedSkills }) {
+	const allSkills = options || [];
 	const [search, setSearch] = useState("");
 
 	const toggleSkill = (skill) => {
@@ -74,7 +35,7 @@ function SkillsSelector({ selectedSkills, setSelectedSkills }) {
 	};
 
 	const filteredSkills = allSkills.filter((skill) =>
-		skill.toLowerCase().includes(search.toLowerCase()),
+		skill.skill_name?.toLowerCase().includes(search.toLowerCase()),
 	);
 
 	const containerVariants = {
@@ -127,12 +88,14 @@ function SkillsSelector({ selectedSkills, setSelectedSkills }) {
 			>
 				<div className="space-y-2 px-2 py-1">
 					{filteredSkills.map((skill) => {
-						const isSelected = selectedSkills.includes(skill);
+						const isSelected = selectedSkills.includes(
+							skill.skill_id,
+						);
 
 						return (
 							<motion.button
-								key={skill}
-								onClick={() => toggleSkill(skill)}
+								key={skill.skill_id}
+								onClick={() => toggleSkill(skill.skill_id)}
 								variants={itemVariants}
 								whileHover={{ scale: 1.01 }}
 								whileTap={{ scale: 0.97 }}
@@ -142,7 +105,7 @@ function SkillsSelector({ selectedSkills, setSelectedSkills }) {
 										: "bg-shark-800 text-shark-200 hover:bg-aqua-island-500 hover:text-shark-900"
 								}`}
 							>
-								<span>{skill}</span>
+								<span>{skill.skill_name}</span>
 
 								{isSelected && (
 									<Check className="h-4 w-4 text-shark-900" />
@@ -156,9 +119,8 @@ function SkillsSelector({ selectedSkills, setSelectedSkills }) {
 	);
 }
 
-function PasswordField({ label, placeholder }) {
+function PasswordField({ label, placeholder, value, onChange }) {
 	const [show, setShow] = useState(false);
-	const [val, setVal] = useState("");
 	return (
 		<div className="space-y-3">
 			<label className="block text-sm font-bold font-ubuntu tracking-wide text-shark-100">
@@ -172,8 +134,8 @@ function PasswordField({ label, placeholder }) {
 				<input
 					type={show ? "text" : "password"}
 					placeholder={placeholder}
-					value={val}
-					onChange={(e) => setVal(e.target.value)}
+					value={value || ""}
+					onChange={(e) => onChange && onChange(e.target.value)}
 					className="w-full pl-12 pr-12 py-3 bg-shark-800 rounded-xl text-sm font-ubuntu font-medium outline-none border border-aqua-island-500/10 text-white focus:border-aqua-island-500/45 transition-all"
 				/>
 				<motion.button
@@ -194,59 +156,7 @@ function PasswordField({ label, placeholder }) {
 	);
 }
 
-function JobSelect({ value, onChange }) {
-	const jobs = [
-		"Software Engineer",
-		"Senior Product Designer",
-		"Data Scientist",
-		"Project Manager",
-		"DevOps Engineer",
-		"Frontend Developer",
-		"Backend Developer",
-		"Full Stack Developer",
-		"UX Researcher",
-		"Product Manager",
-		"Machine Learning Engineer",
-		"AI Engineer",
-		"Cybersecurity Analyst",
-		"Cloud Engineer",
-		"Network Engineer",
-		"Systems Analyst",
-		"Business Analyst",
-		"QA Engineer",
-		"Mobile App Developer",
-		"Database Administrator",
-		"Data Analyst",
-		"Research Scientist",
-		"UI Designer",
-		"UX Designer",
-		"Technical Writer",
-		"IT Support Specialist",
-		"Solutions Architect",
-		"Scrum Master",
-		"Site Reliability Engineer",
-		"Game Developer",
-		"Embedded Systems Engineer",
-		"Blockchain Developer",
-		"AR/VR Developer",
-		"Product Owner",
-		"Digital Marketing Specialist",
-		"SEO Specialist",
-		"Sales Engineer",
-		"Operations Manager",
-		"Financial Analyst",
-		"HR Specialist",
-		"Recruiter",
-		"Content Strategist",
-		"Customer Success Manager",
-		"Support Engineer",
-		"BI Developer",
-		"Data Engineer",
-		"Statistician",
-		"Robotics Engineer",
-		"Research Assistant",
-	];
-
+function JobSelect({ value, onChange, jobs = [] }) {
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 
@@ -424,16 +334,6 @@ function SaveBtn({ label, onClick, saved }) {
 			>
 				{label}
 			</motion.button>
-			{saved && (
-				<motion.span
-					initial={{ opacity: 0, x: -6 }}
-					animate={{ opacity: 1, x: 0 }}
-					exit={{ opacity: 0 }}
-					className="flex items-center gap-1 text-xs font-ubuntu font-bold text-narvik-500"
-				>
-					<Check size={12} strokeWidth={3} /> Saved
-				</motion.span>
-			)}
 		</div>
 	);
 }
@@ -486,7 +386,11 @@ export default function JobSeekerProfile() {
 	const [savedBadge, setSavedBadge] = useState({
 		personal: false,
 		skills: false,
+		security: false,
 	});
+	const [profileLoading, setProfileLoading] = useState(true);
+	const [jobs, setJobs] = useState([]);
+	const [skillOptions, setSkillOptions] = useState([]);
 
 	const [personal, setPersonal] = useState({
 		fullName: "",
@@ -497,13 +401,101 @@ export default function JobSeekerProfile() {
 		dob: "",
 	});
 	const [skills, setSkills] = useState([]);
+	const [passwords, setPasswords] = useState({
+		current: "",
+		new: "",
+	});
 
 	useEffect(() => {
-		const saved = loadProfile();
-		if (saved) {
-			if (saved.personal) setPersonal(saved.personal);
-			if (saved.skills) setSkills(saved.skills);
-		}
+		const fetchData = async () => {
+			try {
+				const {
+					data: { session },
+					error: sessionError,
+				} = await supabase.auth.getSession();
+
+				if (sessionError || !session?.user?.id) {
+					setProfileLoading(false);
+					return;
+				}
+
+				const userId = session.user.id;
+
+				// Fetch jobs
+				const { data: jobsData, error: jobsError } = await supabase
+					.from("jobs")
+					.select("job_title")
+					.order("job_title");
+
+				if (!jobsError && jobsData) {
+					setJobs(jobsData.map((j) => j.job_title));
+				}
+
+				const { data: skillsData, error: skillsError } = await supabase
+					.from("skills")
+					.select("skill_id, skill_name")
+					.order("skill_name");
+
+				if (!skillsError && skillsData) {
+					setSkillOptions(skillsData);
+				}
+
+				// Fetch profile data
+				const [
+					{ data: profileData, error: profileError },
+					{ data: jobSeekerData, error: jobSeekerError },
+					{ data: skillsetData, error: skillsetError },
+				] = await Promise.all([
+					supabase
+						.from("profiles")
+						.select("full_name")
+						.eq("id", userId)
+						.single(),
+					supabase
+						.from("job_seekers")
+						.select(
+							"current_job, education_level, university, address, date_of_birth, jobs(job_title)",
+						)
+						.eq("user_id", userId)
+						.single(),
+					supabase
+						.from("skillsets")
+						.select("skill_id")
+						.eq("user_id", userId),
+				]);
+
+				if (!profileError && profileData) {
+					setPersonal((prev) => ({
+						...prev,
+						fullName: profileData.full_name || "",
+					}));
+				}
+
+				if (!jobSeekerError && jobSeekerData) {
+					setPersonal((prev) => ({
+						...prev,
+						job: jobSeekerData.jobs?.job_title || "",
+						education: jobSeekerData.education_level || "",
+						university: jobSeekerData.university || "",
+						address: jobSeekerData.address || "",
+						dob: jobSeekerData.date_of_birth || "",
+					}));
+				}
+
+				if (!skillsetError && skillsetData) {
+					const loadedSkills = skillsetData
+						.map((item) => item.skill_id)
+						.filter(Boolean);
+					setSkills(loadedSkills);
+				}
+			} catch (error) {
+				console.error("Failed to load profile data", error);
+			} finally {
+				setProfileLoading(false);
+			}
+		};
+
+		fetchData();
 	}, []);
 
 	useEffect(() => {
@@ -515,19 +507,208 @@ export default function JobSeekerProfile() {
 	const updatePersonal = (key, val) =>
 		setPersonal((prev) => ({ ...prev, [key]: val }));
 
-	const handleSavePersonal = () => {
-		saveProfile({ personal, skills });
-		setSavedBadge((p) => ({ ...p, personal: true }));
-		setTimeout(
-			() => setSavedBadge((p) => ({ ...p, personal: false })),
-			2500,
-		);
+	const handleSavePersonal = async () => {
+		try {
+			const {
+				data: { session },
+				error: sessionError,
+			} = await supabase.auth.getSession();
+
+			if (sessionError || !session?.user?.id) {
+				toast.error("Unable to save profile. Please login again.");
+				return;
+			}
+
+			const userId = session.user.id;
+
+			let currentJobId = null;
+			if (personal.job) {
+				const { data: jobData, error: jobQueryError } = await supabase
+					.from("jobs")
+					.select("job_id")
+					.eq("job_title", personal.job)
+					.single();
+
+				if (jobQueryError || !jobData) {
+					toast.error(
+						"Selected job not found in database. Please try again.",
+					);
+					return;
+				}
+
+				currentJobId = jobData.job_id;
+			}
+
+			const updates = {
+				current_job: currentJobId,
+				education_level: personal.education || null,
+				university: personal.university || null,
+				address: personal.address || null,
+				date_of_birth: personal.dob || null,
+				user_id: userId,
+			};
+
+			const { error: profileError } = await supabase
+				.from("profiles")
+				.update({ full_name: personal.fullName || null })
+				.eq("id", userId);
+
+			const { error: jobError } = await supabase
+				.from("job_seekers")
+				.upsert([updates], { onConflict: "user_id" });
+
+			if (profileError || jobError) {
+				console.error(profileError || jobError);
+				toast.error("Failed to save personal details.");
+				return;
+			}
+
+			setSavedBadge((p) => ({ ...p, personal: true }));
+			setTimeout(
+				() => setSavedBadge((p) => ({ ...p, personal: false })),
+				2500,
+			);
+			toast.success("Personal details saved.");
+		} catch (error) {
+			console.error("Failed to save personal profile", error);
+			toast.error("Failed to save personal details.");
+		}
 	};
 
-	const handleSaveSkills = () => {
-		saveProfile({ personal, skills });
-		setSavedBadge((p) => ({ ...p, skills: true }));
-		setTimeout(() => setSavedBadge((p) => ({ ...p, skills: false })), 2500);
+	const handleSaveSkills = async () => {
+		try {
+			const {
+				data: { session },
+				error: sessionError,
+			} = await supabase.auth.getSession();
+
+			if (sessionError || !session?.user?.id) {
+				toast.error("Unable to save skills. Please login again.");
+				return;
+			}
+
+			const userId = session.user.id;
+			// skill_id is TEXT in the database, not numeric
+			const selectedSkillIds = Array.from(
+				new Set(
+					skills
+						.map((skillId) => String(skillId).trim())
+						.filter((skillId) => skillId.length > 0),
+				),
+			);
+
+			if (selectedSkillIds.length === 0) {
+				// If no skills selected, just delete existing and return
+				const { error: deleteError } = await supabase
+					.from("skillsets")
+					.delete()
+					.eq("user_id", userId);
+
+				if (deleteError) {
+					console.error(deleteError);
+					toast.error("Failed to save skills.");
+					return;
+				}
+
+				setSavedBadge((p) => ({ ...p, skills: true }));
+				setTimeout(
+					() => setSavedBadge((p) => ({ ...p, skills: false })),
+					2500,
+				);
+				toast.success("Skills saved.");
+				return;
+			}
+
+			const { data: validSkills, error: validateError } = await supabase
+				.from("skills")
+				.select("skill_id")
+				.in("skill_id", selectedSkillIds);
+
+			if (validateError) {
+				console.error(validateError);
+				toast.error("Failed to validate selected skills.");
+				return;
+			}
+
+			const validSkillIds = (validSkills || []).map(
+				(item) => item.skill_id,
+			);
+
+			const { error: deleteError } = await supabase
+				.from("skillsets")
+				.delete()
+				.eq("user_id", userId);
+
+			if (deleteError) {
+				console.error(deleteError);
+				toast.error("Failed to save skills.");
+				return;
+			}
+
+			if (validSkillIds.length > 0) {
+				const { error: insertMappingError } = await supabase
+					.from("skillsets")
+					.insert(
+						validSkillIds.map((skill_id) => ({
+							user_id: userId,
+							skill_id,
+						})),
+					);
+
+				if (insertMappingError) {
+					console.error(insertMappingError);
+					toast.error("Failed to save skills.");
+					return;
+				}
+			}
+
+			setSavedBadge((p) => ({ ...p, skills: true }));
+			setTimeout(
+				() => setSavedBadge((p) => ({ ...p, skills: false })),
+				2500,
+			);
+			toast.success("Skills saved.");
+		} catch (error) {
+			console.error("Failed to save skills", error);
+			toast.error("Failed to save skills.");
+		}
+	};
+
+	const updatePasswords = (key, val) =>
+		setPasswords((prev) => ({ ...prev, [key]: val }));
+
+	const handleSavePassword = async () => {
+		try {
+			if (!passwords.new) {
+				toast.error("Please enter a new password.");
+				return;
+			}
+
+			if (passwords.new.length < 6) {
+				toast.error("Password must be at least 6 characters long.");
+				return;
+			}
+
+			// For password verification, since Supabase doesn't allow direct current password check,
+			// we'll proceed with update assuming the user is authenticated.
+			// In a production app, you might want to implement re-authentication.
+
+			const { error } = await supabase.auth.updateUser({
+				password: passwords.new,
+			});
+
+			if (error) {
+				console.error("Password update error:", error);
+				toast.error("Failed to update password. Please try again.");
+				return;
+			}
+
+			setPasswords({ current: "", new: "" });
+			toast.success("Password updated successfully.");
+		} catch (error) {
+			console.error("Failed to update password", error);
+			toast.error("Failed to update password.");
+		}
 	};
 
 	const displayName = personal.fullName || null;
@@ -646,6 +827,7 @@ export default function JobSeekerProfile() {
 												onChange={(v) =>
 													updatePersonal("job", v)
 												}
+												jobs={jobs}
 											/>
 										</div>
 										<div className="grid grid-cols-2 gap-4">
@@ -715,6 +897,7 @@ export default function JobSeekerProfile() {
 									subtitle="Select all skills that apply to your profile."
 								>
 									<SkillsSelector
+										options={skillOptions}
 										selectedSkills={skills}
 										setSelectedSkills={setSkills}
 									/>
@@ -744,13 +927,25 @@ export default function JobSeekerProfile() {
 										<PasswordField
 											label="Current Password"
 											placeholder="Enter current password"
+											value={passwords.current}
+											onChange={(v) =>
+												updatePasswords("current", v)
+											}
 										/>
 										<PasswordField
 											label="New Password"
 											placeholder="Enter new password"
+											value={passwords.new}
+											onChange={(v) =>
+												updatePasswords("new", v)
+											}
 										/>
 										<div className="pt-1">
-											<SaveBtn label="Update Password" />
+											<SaveBtn
+												label="Update Password"
+												onClick={handleSavePassword}
+												saved={savedBadge.security}
+											/>
 										</div>
 									</div>
 								</Card>
