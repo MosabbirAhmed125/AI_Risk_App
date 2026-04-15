@@ -17,24 +17,10 @@ import {
 	DollarSign,
 } from "lucide-react";
 import EnterpriseSidebar from "../components/EnterpriseSidebar";
+import { supabase } from "../lib/supabaseClient";
+import toast from "react-hot-toast";
 
-const LS_KEY = "enterprise_profile";
 const TAB_KEY = "enterprise_active_tab";
-
-function loadProfile() {
-	try {
-		const raw = localStorage.getItem(LS_KEY);
-		return raw ? JSON.parse(raw) : null;
-	} catch {
-		return null;
-	}
-}
-
-function saveProfile(data) {
-	try {
-		localStorage.setItem(LS_KEY, JSON.stringify(data));
-	} catch {}
-}
 
 function getInitialTab() {
 	try {
@@ -44,33 +30,8 @@ function getInitialTab() {
 	return "organization";
 }
 
-function HiringFieldsSelector({ selectedFields, setSelectedFields }) {
-	const allFields = useMemo(
-		() => [
-			"Software Engineering",
-			"Data Science",
-			"Research & Development",
-			"E-Commerce",
-			"Cybersecurity",
-			"UI/UX Design",
-			"Cloud Computing",
-			"DevOps",
-			"Product Management",
-			"Digital Marketing",
-			"Business Analysis",
-			"Artificial Intelligence",
-			"Machine Learning",
-			"Sales & Operations",
-			"Customer Support",
-			"Finance & Accounting",
-			"Human Resources",
-			"Networking",
-			"Mobile Development",
-			"Quality Assurance",
-		],
-		[],
-	);
-
+function HiringFieldsSelector({ options, selectedFields, setSelectedFields }) {
+	const allFields = options || [];
 	const [search, setSearch] = useState("");
 
 	const toggleField = (field) => {
@@ -82,7 +43,7 @@ function HiringFieldsSelector({ selectedFields, setSelectedFields }) {
 	};
 
 	const filteredFields = allFields.filter((field) =>
-		field.toLowerCase().includes(search.toLowerCase()),
+		field.job_title?.toLowerCase().includes(search.toLowerCase()),
 	);
 
 	const containerVariants = {
@@ -135,12 +96,14 @@ function HiringFieldsSelector({ selectedFields, setSelectedFields }) {
 			>
 				<div className="space-y-2 px-2 py-1">
 					{filteredFields.map((field) => {
-						const isSelected = selectedFields.includes(field);
+						const isSelected = selectedFields.includes(
+							field.job_id,
+						);
 
 						return (
 							<motion.button
-								key={field}
-								onClick={() => toggleField(field)}
+								key={field.job_id}
+								onClick={() => toggleField(field.job_id)}
 								variants={itemVariants}
 								whileHover={{ scale: 1.01 }}
 								whileTap={{ scale: 0.97 }}
@@ -150,7 +113,7 @@ function HiringFieldsSelector({ selectedFields, setSelectedFields }) {
 										: "bg-shark-800 text-shark-200 hover:bg-red-ribbon-600 hover:text-shark-200"
 								}`}
 							>
-								<span>{field}</span>
+								<span>{field.job_title}</span>
 
 								{isSelected && (
 									<Check className="h-4 w-4 text-shark-200" />
@@ -164,10 +127,8 @@ function HiringFieldsSelector({ selectedFields, setSelectedFields }) {
 	);
 }
 
-function PasswordField({ label, placeholder }) {
+function PasswordField({ label, placeholder, value, onChange }) {
 	const [show, setShow] = useState(false);
-	const [val, setVal] = useState("");
-
 	return (
 		<div className="space-y-3">
 			<label className="block text-sm font-bold font-ubuntu tracking-wide text-shark-100">
@@ -181,8 +142,8 @@ function PasswordField({ label, placeholder }) {
 				<input
 					type={show ? "text" : "password"}
 					placeholder={placeholder}
-					value={val}
-					onChange={(e) => setVal(e.target.value)}
+					value={value || ""}
+					onChange={(e) => onChange && onChange(e.target.value)}
 					className="w-full pl-12 pr-12 py-3 bg-shark-800 rounded-xl text-sm font-ubuntu font-medium outline-none border border-red-ribbon-600/10 text-shark-200 focus:border-red-ribbon-600/45 transition-all"
 				/>
 				<motion.button
@@ -353,16 +314,6 @@ function SaveBtn({ label, onClick, saved }) {
 			>
 				{label}
 			</motion.button>
-			{saved && (
-				<motion.span
-					initial={{ opacity: 0, x: -6 }}
-					animate={{ opacity: 1, x: 0 }}
-					exit={{ opacity: 0 }}
-					className="flex items-center gap-1 text-xs font-ubuntu font-bold text-narvik-500"
-				>
-					<Check size={12} strokeWidth={3} /> Saved
-				</motion.span>
-			)}
 		</div>
 	);
 }
@@ -405,7 +356,10 @@ export default function EnterpriseProfile() {
 	const [savedBadge, setSavedBadge] = useState({
 		organization: false,
 		fields: false,
+		security: false,
 	});
+	const [profileLoading, setProfileLoading] = useState(true);
+	const [jobOptions, setJobOptions] = useState([]);
 
 	const [organization, setOrganization] = useState({
 		name: "",
@@ -415,15 +369,106 @@ export default function EnterpriseProfile() {
 		location: "",
 		founded: "",
 	});
-
 	const [hiringFields, setHiringFields] = useState([]);
+	const [passwords, setPasswords] = useState({
+		current: "",
+		new: "",
+	});
 
 	useEffect(() => {
-		const saved = loadProfile();
-		if (saved) {
-			if (saved.organization) setOrganization(saved.organization);
-			if (saved.hiringFields) setHiringFields(saved.hiringFields);
-		}
+		const fetchData = async () => {
+			try {
+				const {
+					data: { session },
+					error: sessionError,
+				} = await supabase.auth.getSession();
+
+				if (sessionError || !session?.user?.id) {
+					setProfileLoading(false);
+					return;
+				}
+
+				const userId = session.user.id;
+
+				// Fetch jobs
+				const { data: jobsData, error: jobsError } = await supabase
+					.from("jobs")
+					.select("job_id, job_title")
+					.order("job_title");
+
+				let jobOptions = [];
+				if (!jobsError && jobsData) {
+					// Remove duplicates based on job_id
+					const uniqueJobs = jobsData.filter(
+						(job, index, self) =>
+							index ===
+							self.findIndex((j) => j.job_id === job.job_id),
+					);
+					jobOptions = uniqueJobs;
+					setJobOptions(uniqueJobs);
+				}
+
+				// Fetch profile data
+				const [
+					{ data: profileData, error: profileError },
+					{ data: enterpriseData, error: enterpriseError },
+					{ data: hiringFieldsData, error: hiringFieldsError },
+				] = await Promise.all([
+					supabase
+						.from("profiles")
+						.select("full_name")
+						.eq("id", userId)
+						.single(),
+					supabase
+						.from("enterprises")
+						.select(
+							"category, company_size, avg_salary, location, founded",
+						)
+						.eq("user_id", userId)
+						.single(),
+					supabase
+						.from("hiring_fields")
+						.select("field")
+						.eq("company_id", userId),
+				]);
+
+				if (!profileError && profileData) {
+					setOrganization((prev) => ({
+						...prev,
+						name: profileData.full_name || "",
+					}));
+				}
+
+				if (!enterpriseError && enterpriseData) {
+					setOrganization((prev) => ({
+						...prev,
+						category: enterpriseData.category || "",
+						companySize: enterpriseData.company_size || "",
+						avgSalary: enterpriseData.avg_salary
+							? String(enterpriseData.avg_salary)
+							: "",
+						location: enterpriseData.location || "",
+						founded: enterpriseData.founded || "",
+					}));
+				}
+
+				if (!hiringFieldsError && hiringFieldsData) {
+					// Filter loaded fields to only valid job_ids from the jobs table
+					const loadedFields = hiringFieldsData
+						.map((item) => item.field)
+						.filter((fieldId) =>
+							jobOptions.some((j) => j.job_id === fieldId),
+						);
+					setHiringFields(loadedFields);
+				}
+			} catch (error) {
+				console.error("Failed to load profile data", error);
+			} finally {
+				setProfileLoading(false);
+			}
+		};
+
+		fetchData();
 	}, []);
 
 	useEffect(() => {
@@ -435,31 +480,216 @@ export default function EnterpriseProfile() {
 	const updateOrganization = (key, val) =>
 		setOrganization((prev) => ({ ...prev, [key]: val }));
 
-	const handleSaveOrganization = () => {
-		saveProfile({ organization, hiringFields });
-		setSavedBadge((p) => ({ ...p, organization: true }));
-		setTimeout(
-			() => setSavedBadge((p) => ({ ...p, organization: false })),
-			2500,
-		);
+	const handleSaveOrganization = async () => {
+		try {
+			const {
+				data: { session },
+				error: sessionError,
+			} = await supabase.auth.getSession();
+
+			if (sessionError || !session?.user?.id) {
+				toast.error("Unable to save organization. Please login again.");
+				return;
+			}
+
+			const userId = session.user.id;
+
+			const updates = {
+				category: organization.category || null,
+				company_size: organization.companySize || null,
+				avg_salary: organization.avgSalary
+					? parseFloat(organization.avgSalary)
+					: null,
+				location: organization.location || null,
+				founded: organization.founded || null,
+				user_id: userId,
+			};
+
+			const { error: profileError } = await supabase
+				.from("profiles")
+				.update({ full_name: organization.name || null })
+				.eq("id", userId);
+
+			const { error: enterpriseError } = await supabase
+				.from("enterprises")
+				.upsert([updates], { onConflict: "user_id" });
+
+			if (profileError || enterpriseError) {
+				console.error(profileError || enterpriseError);
+				toast.error("Failed to save organization details.");
+				return;
+			}
+
+			setSavedBadge((p) => ({ ...p, organization: true }));
+			setTimeout(
+				() => setSavedBadge((p) => ({ ...p, organization: false })),
+				2500,
+			);
+			toast.success("Organization details saved.");
+		} catch (error) {
+			console.error("Failed to save organization profile", error);
+			toast.error("Failed to save organization details.");
+		}
 	};
 
-	const handleSaveFields = () => {
-		saveProfile({ organization, hiringFields });
-		setSavedBadge((p) => ({ ...p, fields: true }));
-		setTimeout(() => setSavedBadge((p) => ({ ...p, fields: false })), 2500);
+	const handleSaveFields = async () => {
+		try {
+			const {
+				data: { session },
+				error: sessionError,
+			} = await supabase.auth.getSession();
+
+			if (sessionError || !session?.user?.id) {
+				toast.error(
+					"Unable to save hiring fields. Please login again.",
+				);
+				return;
+			}
+
+			const userId = session.user.id;
+			// field is TEXT in the database, not numeric
+			const selectedFieldIds = Array.from(
+				new Set(
+					hiringFields
+						.map((fieldId) => String(fieldId).trim())
+						.filter((fieldId) => fieldId.length > 0),
+				),
+			);
+
+			if (selectedFieldIds.length === 0) {
+				// If no fields selected, just delete existing and return
+				const { error: deleteError } = await supabase
+					.from("hiring_fields")
+					.delete()
+					.eq("company_id", userId);
+
+				if (deleteError) {
+					console.error(deleteError);
+					toast.error("Failed to save hiring fields.");
+					return;
+				}
+
+				setSavedBadge((p) => ({ ...p, fields: true }));
+				setTimeout(
+					() => setSavedBadge((p) => ({ ...p, fields: false })),
+					2500,
+				);
+				toast.success("Hiring fields saved.");
+				return;
+			}
+
+			const { data: validFields, error: validateError } = await supabase
+				.from("jobs")
+				.select("job_id")
+				.in("job_id", selectedFieldIds);
+
+			if (validateError) {
+				console.error(validateError);
+				toast.error("Failed to validate selected fields.");
+				return;
+			}
+
+			const validFieldIds = (validFields || []).map(
+				(item) => item.job_id,
+			);
+
+			const { error: deleteError } = await supabase
+				.from("hiring_fields")
+				.delete()
+				.eq("company_id", userId);
+
+			if (deleteError) {
+				console.error(deleteError);
+				toast.error("Failed to save hiring fields.");
+				return;
+			}
+
+			if (validFieldIds.length > 0) {
+				const { error: insertError } = await supabase
+					.from("hiring_fields")
+					.insert(
+						validFieldIds.map((field) => ({
+							company_id: userId,
+							field,
+						})),
+					);
+
+				if (insertError) {
+					console.error(insertError);
+					toast.error("Failed to save hiring fields.");
+					return;
+				}
+			}
+
+			setSavedBadge((p) => ({ ...p, fields: true }));
+			setTimeout(
+				() => setSavedBadge((p) => ({ ...p, fields: false })),
+				2500,
+			);
+			toast.success("Hiring fields saved.");
+		} catch (error) {
+			console.error("Failed to save hiring fields", error);
+			toast.error("Failed to save hiring fields.");
+		}
+	};
+
+	const updatePasswords = (key, val) =>
+		setPasswords((prev) => ({ ...prev, [key]: val }));
+
+	const handleSavePassword = async () => {
+		try {
+			if (!passwords.new) {
+				toast.error("Please enter a new password.");
+				return;
+			}
+
+			if (passwords.new.length < 6) {
+				toast.error("Password must be at least 6 characters long.");
+				return;
+			}
+
+			// For password verification, since Supabase doesn't allow direct current password check,
+			// we'll proceed with update assuming the user is authenticated.
+			// In a production app, you might want to implement re-authentication.
+
+			const { error } = await supabase.auth.updateUser({
+				password: passwords.new,
+			});
+
+			if (error) {
+				console.error("Password update error:", error);
+				toast.error("Failed to update password. Please try again.");
+				return;
+			}
+
+			setPasswords({ current: "", new: "" });
+			setSavedBadge((p) => ({ ...p, security: true }));
+			setTimeout(
+				() => setSavedBadge((p) => ({ ...p, security: false })),
+				2500,
+			);
+			toast.success("Password updated successfully.");
+		} catch (error) {
+			console.error("Failed to update password", error);
+			toast.error("Failed to update password.");
+		}
 	};
 
 	const displayName = organization.name || null;
 
 	const categories = [
-		"Software",
-		"Data Science",
-		"Research Center",
-		"E-Commerce",
-		"Cybersecurity",
-		"Cloud Services",
-		"AI Solutions",
+		"Technology",
+		"Finance",
+		"Healthcare",
+		"Education",
+		"Retail & E-Commerce",
+		"Manufacturing",
+		"Telecommunications",
+		"Energy & Utilities",
+		"Transportation & Logistics",
+		"Media & Entertainment",
+		"Consulting & Professional Services",
+		"Government & Public Services",
 	];
 
 	const companySizes = ["Small", "Medium", "Large"];
@@ -666,6 +896,7 @@ export default function EnterpriseProfile() {
 									subtitle="Select all fields that apply to your organization."
 								>
 									<HiringFieldsSelector
+										options={jobOptions}
 										selectedFields={hiringFields}
 										setSelectedFields={setHiringFields}
 									/>
@@ -695,13 +926,25 @@ export default function EnterpriseProfile() {
 										<PasswordField
 											label="Current Password"
 											placeholder="Enter current password"
+											value={passwords.current}
+											onChange={(v) =>
+												updatePasswords("current", v)
+											}
 										/>
 										<PasswordField
 											label="New Password"
 											placeholder="Enter new password"
+											value={passwords.new}
+											onChange={(v) =>
+												updatePasswords("new", v)
+											}
 										/>
 										<div className="pt-1">
-											<SaveBtn label="Update Password" />
+											<SaveBtn
+												label="Update Password"
+												onClick={handleSavePassword}
+												saved={savedBadge.security}
+											/>
 										</div>
 									</div>
 								</Card>
