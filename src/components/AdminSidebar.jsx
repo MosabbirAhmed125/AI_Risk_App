@@ -118,8 +118,11 @@ export default function AdminSidebar() {
 									className="absolute text-shark-200"
 								/>
 							</div>
-							<span className="text-shark-200 text-[17px] font-bold font-major-mono-display whitespace-nowrap">
-								ai risk app
+							<span
+								className="text-shark-200 mt-2 text-[28px] font-gurvaco
+								whitespace-nowrap leading-none tracking-wider"
+							>
+								INFLECTION
 							</span>
 						</div>
 					)}

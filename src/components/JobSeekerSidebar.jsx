@@ -120,7 +120,7 @@ export default function JobSeekerSidebar() {
                         ${collapsed ? "justify-center" : "justify-between"}`}
 				>
 					{!collapsed && (
-						<div className="flex items-center gap-3 overflow-hidden">
+						<div className="flex items-center justify-center gap-3 overflow-hidden">
 							<div className="relative w-9 h-9 shrink-0 bg-aqua-island-500 rounded-lg flex items-center justify-center">
 								<BrainCircuit
 									size={25}
@@ -133,8 +133,12 @@ export default function JobSeekerSidebar() {
 									className="absolute text-shark-200"
 								/>
 							</div>
-							<span className="text-shark-200 text-[17px] font-bold font-major-mono-display whitespace-nowrap">
-								ai risk app
+
+							<span
+								className="text-shark-200 mt-2 text-[28px] font-gurvaco
+								whitespace-nowrap leading-none tracking-wider"
+							>
+								INFLECTION
 							</span>
 						</div>
 					)}

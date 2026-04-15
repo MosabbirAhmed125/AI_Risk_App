@@ -1,3 +1,4 @@
+import "../index.css";
 import { useState, useMemo, useEffect, useRef } from "react";
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -5,6 +6,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
 	Check,
+	Search,
 	Eye,
 	EyeOff,
 	Camera,
@@ -204,12 +206,60 @@ function JobSelect({ value, onChange }) {
 		"Full Stack Developer",
 		"UX Researcher",
 		"Product Manager",
+		"Machine Learning Engineer",
+		"AI Engineer",
+		"Cybersecurity Analyst",
+		"Cloud Engineer",
+		"Network Engineer",
+		"Systems Analyst",
+		"Business Analyst",
+		"QA Engineer",
+		"Mobile App Developer",
+		"Database Administrator",
+		"Data Analyst",
+		"Research Scientist",
+		"UI Designer",
+		"UX Designer",
+		"Technical Writer",
+		"IT Support Specialist",
+		"Solutions Architect",
+		"Scrum Master",
+		"Site Reliability Engineer",
+		"Game Developer",
+		"Embedded Systems Engineer",
+		"Blockchain Developer",
+		"AR/VR Developer",
+		"Product Owner",
+		"Digital Marketing Specialist",
+		"SEO Specialist",
+		"Sales Engineer",
+		"Operations Manager",
+		"Financial Analyst",
+		"HR Specialist",
+		"Recruiter",
+		"Content Strategist",
+		"Customer Success Manager",
+		"Support Engineer",
+		"BI Developer",
+		"Data Engineer",
+		"Statistician",
+		"Robotics Engineer",
+		"Research Assistant",
 	];
+
 	const [open, setOpen] = useState(false);
+	const [search, setSearch] = useState("");
+
+	const filteredJobs = useMemo(() => {
+		return jobs.filter((job) =>
+			job.toLowerCase().includes(search.toLowerCase()),
+		);
+	}, [jobs, search]);
 
 	return (
 		<div className="relative">
 			<button
+				type="button"
 				onClick={() => setOpen(!open)}
 				className={`w-full flex items-center justify-between px-4 py-3 bg-shark-800 rounded-xl text-sm font-ubuntu font-medium transition-all border ${
 					open
@@ -227,6 +277,7 @@ function JobSelect({ value, onChange }) {
 					}}
 				/>
 			</button>
+
 			<AnimatePresence>
 				{open && (
 					<motion.div
@@ -236,30 +287,54 @@ function JobSelect({ value, onChange }) {
 						transition={{ duration: 0.15 }}
 						className="absolute z-50 w-full mt-1 bg-shark-900 rounded-xl overflow-hidden border border-aqua-island-500/15 shadow-2xl"
 					>
-						<div className="py-2 max-h-48 overflow-y-auto scrollbar-hide">
-							{jobs.map((job) => (
-								<button
-									key={job}
-									onClick={() => {
-										onChange(job);
-										setOpen(false);
-									}}
-									className={`w-full flex items-center justify-between px-4 py-3 text-sm font-ubuntu font-medium text-left transition-colors ${
-										value === job
-											? "text-aqua-island-500 bg-aqua-island-500/10"
-											: "text-white hover:bg-aqua-island-500/12"
-									}`}
-								>
-									{job}
-									{value === job && (
-										<Check
-											size={14}
-											strokeWidth={3}
-											className="text-shark-800"
-										/>
-									)}
-								</button>
-							))}
+						<div className="p-2 border-b border-aqua-island-500/10">
+							<div className="relative">
+								<Search
+									size={15}
+									className="absolute left-3 top-1/2 -translate-y-1/2 text-shark-400"
+								/>
+								<input
+									type="text"
+									placeholder="Search job title..."
+									value={search}
+									onChange={(e) => setSearch(e.target.value)}
+									className="w-full rounded-lg bg-shark-800 pl-10 pr-3 py-2 text-sm font-ubuntu font-medium text-white placeholder:text-shark-400 outline-none border border-aqua-island-500/10 focus:border-aqua-island-500/45"
+								/>
+							</div>
+						</div>
+
+						<div className="py-2 max-h-56 overflow-y-auto scrollbar-hide">
+							{filteredJobs.length > 0 ? (
+								filteredJobs.map((job) => (
+									<button
+										type="button"
+										key={job}
+										onClick={() => {
+											onChange(job);
+											setOpen(false);
+											setSearch("");
+										}}
+										className={`w-full flex items-center justify-between px-4 py-3 text-sm font-ubuntu font-medium text-left transition-colors ${
+											value === job
+												? "text-aqua-island-500 bg-aqua-island-500/10"
+												: "text-white hover:bg-aqua-island-500/12"
+										}`}
+									>
+										{job}
+										{value === job && (
+											<Check
+												size={14}
+												strokeWidth={3}
+												className="text-shark-200"
+											/>
+										)}
+									</button>
+								))
+							) : (
+								<div className="px-4 py-3 text-sm font-ubuntu font-medium text-shark-400">
+									No matching jobs found.
+								</div>
+							)}
 						</div>
 					</motion.div>
 				)}

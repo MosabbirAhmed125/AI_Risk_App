@@ -1,3 +1,79 @@
+@font-face {
+	font-family: "Dreamer";
+	src: url("./assets/fonts/Dreamer.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Emasland";
+	src: url("./assets/fonts/Emasland.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Freedom";
+	src: url("./assets/fonts/Freedom.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "GalhauDisplay-Bold";
+	src: url("./assets/fonts/GalhauDisplay-Bold.ttf") format("truetype");
+	font-weight: 700;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "GalhauDisplay-Regular";
+	src: url("./assets/fonts/GalhauDisplay-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Gramola";
+	src: url("./assets/fonts/Gramola.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Gurvaco";
+	src: url("./assets/fonts/Gurvaco.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Header";
+	src: url("./assets/fonts/Header.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Idealism";
+	src: url("./assets/fonts/Idealism.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "Jenko";
+	src: url("./assets/fonts/Jenko.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "MatthCondensed";
+	src: url("./assets/fonts/MatthCondensed.otf") format("opentype");
+	font-weight: 400;
+	font-style: normal;
+}
 @import url("https://fonts.googleapis.com/css2?family=Boldonse&family=Borel&family=Bungee&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Major+Mono+Display&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Staatliches&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap");
 
 @import "tailwindcss";
@@ -99,6 +175,17 @@
 	--font-arkhip: "Arkhip", sans-serif;
 	--font-moon: "Moon", sans-serif;
 	--font-sequel: "Sequel", sans-serif;
+	--font-dreamer: "Dreamer", sans-serif;
+	--font-emasland: "Emasland", sans-serif;
+	--font-freedom: "Freedom", sans-serif;
+	--font-galhaudisplay-bold: "GalhauDisplay-Bold", sans-serif;
+	--font-galhaudisplay-regular: "GalhauDisplay-Regular", sans-serif;
+	--font-gramola: "Gramola", sans-serif;
+	--font-gurvaco: "Gurvaco", sans-serif;
+	--font-header: "Header", sans-serif;
+	--font-idealism: "Idealism", sans-serif;
+	--font-jenko: "Jenko", sans-serif;
+	--font-matthcondensed: "MatthCondensed", sans-serif;
 }
 
 .scrollbar-hide {
