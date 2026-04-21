@@ -17,71 +17,6 @@ import {
 	ResponsiveContainer,
 } from "recharts";
 
-const SALARY_DATA = {
-	"AI/ML Engineer": [
-		{ year: "2015", salary: 98000 },
-		{ year: "2016", salary: 105400 },
-		{ year: "2017", salary: 112800 },
-		{ year: "2018", salary: 121500 },
-		{ year: "2019", salary: 118200 },
-		{ year: "2020", salary: 130700 },
-		{ year: "2021", salary: 148300 },
-		{ year: "2022", salary: 162500 },
-		{ year: "2023", salary: 155900 },
-		{ year: "2024", salary: 174200 },
-	],
-	"Database Administrator": [
-		{ year: "2015", salary: 72000 },
-		{ year: "2016", salary: 74500 },
-		{ year: "2017", salary: 71300 },
-		{ year: "2018", salary: 78900 },
-		{ year: "2019", salary: 81200 },
-		{ year: "2020", salary: 79600 },
-		{ year: "2021", salary: 85400 },
-		{ year: "2022", salary: 89100 },
-		{ year: "2023", salary: 93700 },
-		{ year: "2024", salary: 97300 },
-	],
-	"Blockchain Developer": [
-		{ year: "2015", salary: 68000 },
-		{ year: "2016", salary: 79500 },
-		{ year: "2017", salary: 110200 },
-		{ year: "2018", salary: 135800 },
-		{ year: "2019", salary: 118600 },
-		{ year: "2020", salary: 124300 },
-		{ year: "2021", salary: 158900 },
-		{ year: "2022", salary: 143200 },
-		{ year: "2023", salary: 136700 },
-		{ year: "2024", salary: 151400 },
-	],
-	Accountant: [
-		{ year: "2015", salary: 52000 },
-		{ year: "2016", salary: 53800 },
-		{ year: "2017", salary: 55200 },
-		{ year: "2018", salary: 57900 },
-		{ year: "2019", salary: 56400 },
-		{ year: "2020", salary: 58100 },
-		{ year: "2021", salary: 61300 },
-		{ year: "2022", salary: 65800 },
-		{ year: "2023", salary: 63200 },
-		{ year: "2024", salary: 67500 },
-	],
-	"Assembly Line Worker": [
-		{ year: "2015", salary: 31200 },
-		{ year: "2016", salary: 32400 },
-		{ year: "2017", salary: 31800 },
-		{ year: "2018", salary: 33500 },
-		{ year: "2019", salary: 34200 },
-		{ year: "2020", salary: 32900 },
-		{ year: "2021", salary: 35600 },
-		{ year: "2022", salary: 37800 },
-		{ year: "2023", salary: 36400 },
-		{ year: "2024", salary: 39100 },
-	],
-};
-
-const JOB_SECTORS = Object.keys(SALARY_DATA);
-
 function CustomTooltip({ active, payload, label }) {
 	if (!active || !payload?.length) return null;
 	return (
@@ -116,17 +51,17 @@ function CustomTooltip({ active, payload, label }) {
 	);
 }
 
-function SectorDropdown({ value, onChange }) {
+function SectorDropdown({ value, onChange, sectors = [] }) {
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 	const ref = useRef(null);
 
 	const filtered = useMemo(
 		() =>
-			JOB_SECTORS.filter((s) =>
+			sectors.filter((s) =>
 				s.toLowerCase().includes(search.toLowerCase()),
 			),
-		[search],
+		[search, sectors],
 	);
 
 	useEffect(() => {
@@ -226,16 +161,107 @@ function SectorDropdown({ value, onChange }) {
 function SalaryInsights() {
 	const navigate = useNavigate();
 	const [sector, setSector] = useState("");
-	const data = SALARY_DATA[sector] ?? [];
+	const [sectors, setSectors] = useState([]);
+	const [data, setData] = useState([]);
+	const [salaryTrend, setSalaryTrend] = useState(0);
+	const [loading, setLoading] = useState(false);
+
+	// Fetch available job sectors on mount
+	useEffect(() => {
+		const fetchSectors = async () => {
+			try {
+				const { data: jobs, error } = await supabase
+					.from("jobs")
+					.select("job_id, job_title")
+					.order("job_title", { ascending: true });
+
+				if (error) throw error;
+
+				const jobTitles = jobs
+					.map((job) => job.job_title)
+					.filter(Boolean);
+				setSectors([...new Set(jobTitles)]);
+
+				// Set first sector as default
+				if (jobTitles.length > 0 && !sector) {
+					setSector(jobTitles[0]);
+				}
+			} catch (error) {
+				toast.error("Failed to fetch job sectors");
+			}
+		};
+
+		fetchSectors();
+	}, []);
+
+	// Fetch salary history and trend when sector changes
+	useEffect(() => {
+		if (!sector) return;
+
+		const fetchSalaryData = async () => {
+			setLoading(true);
+			try {
+				// Get job_id for the selected job_title
+				const { data: jobs, error: jobError } = await supabase
+					.from("jobs")
+					.select("job_id")
+					.eq("job_title", sector)
+					.single();
+
+				if (jobError || !jobs) {
+					toast.error("Job not found");
+					setLoading(false);
+					return;
+				}
+
+				const jobId = jobs.job_id;
+
+				// Fetch salary history
+				const { data: salaryHistory, error: historyError } =
+					await supabase
+						.from("salary_history")
+						.select("year, average_salary")
+						.eq("job_id", jobId)
+						.order("year", { ascending: true });
+
+				if (historyError) throw historyError;
+
+				// Format data for chart
+				const chartData = (salaryHistory || []).map((item) => ({
+					year: item.year.toString(),
+					salary: item.average_salary,
+				}));
+
+				setData(chartData);
+
+				// Fetch salary trend
+				const { data: trend, error: trendError } = await supabase
+					.from("salary_trend")
+					.select("salary_change")
+					.eq("job_id", jobId)
+					.single();
+
+				if (!trendError && trend) {
+					setSalaryTrend(trend.salary_change);
+				} else {
+					setSalaryTrend(0);
+				}
+			} catch (error) {
+				toast.error("Failed to fetch salary data");
+				setData([]);
+				setSalaryTrend(0);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchSalaryData();
+	}, [sector]);
 
 	const latestSalary = data.length ? data[data.length - 1].salary : 0;
 	const firstSalary = data.length ? data[0].salary : 0;
 	const maxSalary = data.length ? Math.max(...data.map((d) => d.salary)) : 0;
 	const minSalary = data.length ? Math.min(...data.map((d) => d.salary)) : 0;
-	const salary_trend =
-		data.length && firstSalary
-			? (((latestSalary - firstSalary) / firstSalary) * 100).toFixed(1)
-			: 0;
 	const yDomain = data.length
 		? [Math.floor(minSalary * 0.9), Math.ceil(maxSalary * 1.05)]
 		: [0, 100];
@@ -278,19 +304,20 @@ function SalaryInsights() {
 							<SectorDropdown
 								value={sector}
 								onChange={setSector}
+								sectors={sectors}
 							/>
 						</div>
 
 						<div className="grid grid-cols-3 gap-3 shrink-0">
 							{[
 								{
-									label: "Latest (2024)",
+									label: "Latest (2025)",
 									value: `$${latestSalary.toLocaleString()}`,
 									accent: false,
 								},
 								{
 									label: "Salary Trend",
-									value: `+${salary_trend}%`,
+									value: `+${salaryTrend.toFixed(1)}%`,
 									accent: true,
 								},
 								{
@@ -324,128 +351,147 @@ function SalaryInsights() {
 						</div>
 
 						<div className="bg-shark-950 rounded-2xl border border-white/5 pt-6 pr-4 pb-6 pl-2 flex-1 min-h-0">
-							<ResponsiveContainer width="100%" height="100%">
-								<AreaChart
-									data={data}
-									margin={{
-										top: 20,
-										right: 28,
-										left: 20,
-										bottom: 50,
-									}}
-								>
-									<defs>
-										<linearGradient
-											id="salaryGradient"
-											x1="0"
-											y1="0"
-											x2="0"
-											y2="1"
-										>
-											<stop
-												offset="5%"
-												stopColor="var(--color-red-ribbon-600)"
-												stopOpacity={0.3}
-											/>
-											<stop
-												offset="95%"
-												stopColor="var(--color-red-ribbon-600)"
-												stopOpacity={0.02}
-											/>
-										</linearGradient>
-									</defs>
+							{loading ? (
+								<div className="w-full h-full flex items-center justify-center">
+									<div className="text-shark-400 font-ubuntu">
+										Loading salary data...
+									</div>
+								</div>
+							) : data.length > 0 ? (
+								<ResponsiveContainer width="100%" height="100%">
+									<AreaChart
+										data={data}
+										margin={{
+											top: 20,
+											right: 28,
+											left: 20,
+											bottom: 50,
+										}}
+									>
+										<defs>
+											<linearGradient
+												id="salaryGradient"
+												x1="0"
+												y1="0"
+												x2="0"
+												y2="1"
+											>
+												<stop
+													offset="5%"
+													stopColor="var(--color-red-ribbon-600)"
+													stopOpacity={0.3}
+												/>
+												<stop
+													offset="95%"
+													stopColor="var(--color-red-ribbon-600)"
+													stopOpacity={0.02}
+												/>
+											</linearGradient>
+										</defs>
 
-									<CartesianGrid
-										strokeDasharray="3 3"
-										stroke="rgba(230,230,230,0.07)"
-										vertical={false}
-									/>
+										<CartesianGrid
+											strokeDasharray="3 3"
+											stroke="rgba(230,230,230,0.07)"
+											vertical={false}
+										/>
 
-									<XAxis
-										dataKey="year"
-										tick={{
-											fill: "var(--color-shark-400)",
-											fontSize: 12,
-											fontFamily: "Ubuntu, sans-serif",
-										}}
-										axisLine={{
-											stroke: "rgba(230,230,230,0.1)",
-										}}
-										tickLine={false}
-										tickMargin={12}
-										label={{
-											value: "Year",
-											position: "insideBottom",
-											offset: -10,
-											fill: "var(--color-shark-400)",
-											fontSize: 12,
-											fontFamily: "Ubuntu, sans-serif",
-											fontWeight: 700,
-										}}
-									/>
+										<XAxis
+											dataKey="year"
+											tick={{
+												fill: "var(--color-shark-400)",
+												fontSize: 12,
+												fontFamily:
+													"Ubuntu, sans-serif",
+											}}
+											axisLine={{
+												stroke: "rgba(230,230,230,0.1)",
+											}}
+											tickLine={false}
+											tickMargin={12}
+											label={{
+												value: "Year",
+												position: "insideBottom",
+												offset: -10,
+												fill: "var(--color-shark-400)",
+												fontSize: 12,
+												fontFamily:
+													"Ubuntu, sans-serif",
+												fontWeight: 700,
+											}}
+										/>
 
-									<YAxis
-										domain={yDomain}
-										tickFormatter={(v) =>
-											`$${(v / 1000).toFixed(0)}k`
-										}
-										tick={{
-											fill: "var(--color-shark-400)",
-											fontSize: 12,
-											fontFamily: "Ubuntu, sans-serif",
-										}}
-										axisLine={false}
-										tickLine={false}
-										tickMargin={14}
-										width={60}
-										label={{
-											value: "Avg. Salary (USD)",
-											angle: -90,
-											position: "insideLeft",
-											offset: 0,
-											fill: "var(--color-shark-400)",
-											fontSize: 12,
-											fontFamily: "Ubuntu, sans-serif",
-											fontWeight: 700,
-											dx: -10,
-										}}
-									/>
+										<YAxis
+											domain={yDomain}
+											tickFormatter={(v) =>
+												`$${(v / 1000).toFixed(0)}k`
+											}
+											tick={{
+												fill: "var(--color-shark-400)",
+												fontSize: 12,
+												fontFamily:
+													"Ubuntu, sans-serif",
+											}}
+											axisLine={false}
+											tickLine={false}
+											tickMargin={14}
+											width={60}
+											label={{
+												value: "Avg. Salary (USD)",
+												angle: -90,
+												position: "insideLeft",
+												offset: 0,
+												fill: "var(--color-shark-400)",
+												fontSize: 12,
+												fontFamily:
+													"Ubuntu, sans-serif",
+												fontWeight: 700,
+												dx: -10,
+											}}
+										/>
 
-									<Tooltip content={<CustomTooltip />} />
+										<Tooltip content={<CustomTooltip />} />
 
-									<Legend
-										wrapperStyle={{
-											fontFamily: "Ubuntu, sans-serif",
-											fontSize: 13,
-											fontWeight: 700,
-											color: "var(--color-shark-300)",
-											paddingTop: 28,
-										}}
-										formatter={() =>
-											`${sector} — Annual Avg. Salary`
-										}
-									/>
+										<Legend
+											wrapperStyle={{
+												fontFamily:
+													"Ubuntu, sans-serif",
+												fontSize: 13,
+												fontWeight: 700,
+												color: "var(--color-shark-300)",
+												paddingTop: 28,
+											}}
+											formatter={() =>
+												`${sector} — Annual Avg. Salary`
+											}
+										/>
 
-									<Area
-										type="monotone"
-										dataKey="salary"
-										stroke="var(--color-red-ribbon-600)"
-										strokeWidth={2.5}
-										fill="url(#salaryGradient)"
-										dot={{
-											r: 3.5,
-											fill: "var(--color-red-ribbon-600)",
-											strokeWidth: 0,
-										}}
-										activeDot={{
-											r: 6,
-											fill: "var(--color-red-ribbon-600)",
-											stroke: "var(--color-shark-900)",
-											strokeWidth: 2,
-										}}
-									/>
-								</AreaChart>
-							</ResponsiveContainer>
+										<Area
+											type="monotone"
+											dataKey="salary"
+											stroke="var(--color-red-ribbon-600)"
+											strokeWidth={2.5}
+											fill="url(#salaryGradient)"
+											dot={{
+												r: 3.5,
+												fill: "var(--color-red-ribbon-600)",
+												strokeWidth: 0,
+											}}
+											activeDot={{
+												r: 6,
+												fill: "var(--color-red-ribbon-600)",
+												stroke: "var(--color-shark-900)",
+												strokeWidth: 2,
+											}}
+										/>
+									</AreaChart>
+								</ResponsiveContainer>
+							) : (
+								<div className="w-full h-full flex items-center justify-center">
+									<div className="text-shark-400 font-ubuntu">
+										Select a job sector to view salary data
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
