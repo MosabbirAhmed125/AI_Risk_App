@@ -266,23 +266,23 @@ function MySkills() {
 				ease: "easeInOut",
 			}}
 			className="h-screen flex flex-col items-center justify-center
-            bg-[radial-gradient(ellipse_at_top,var(--color-aqua-island-800),var(--color-shark-800),var(--color-shark-950))]
-            bg-no-repeat"
+    bg-[radial-gradient(ellipse_at_top,var(--color-aqua-island-800),var(--color-shark-800),var(--color-shark-950))]
+    bg-no-repeat"
 		>
 			<div className="absolute left-0">
 				<JobSeekerSidebar />
 			</div>
 
-			<div className="w-180 max-w-full mx-auto pb-6 flex flex-col gap-6">
-				<div className="flex flex-col justify-center items-center h-fit mb-3">
-					<p className="text-4xl font-sequel tracking-widest text-shark-200">
+			<div className="w-232 max-w-[calc(100vw-8rem)] mx-auto pb-6 flex flex-col gap-7">
+				<div className="flex flex-col justify-center items-center h-fit mb-4">
+					<p className="text-5xl font-sequel tracking-widest text-shark-200">
 						SKILL RISK ANALYSIS
 					</p>
 				</div>
 
-				<div className="w-full flex gap-4">
+				<div className="w-full flex gap-5">
 					<div className="relative flex-1">
-						<Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-aqua-island-400" />
+						<Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-aqua-island-400" />
 
 						<motion.input
 							layout
@@ -292,7 +292,7 @@ function MySkills() {
 							onChange={(e) =>
 								table.setGlobalFilter(e.target.value)
 							}
-							className="w-full pl-11 pr-4 py-3 border-2 border-aqua-island-500/40 text-shark-100 rounded-xl bg-shark-950 font-ubuntu font-bold focus:outline-none placeholder:text-shark-500"
+							className="w-full pl-12 pr-4 py-4 border-2 border-aqua-island-500/40 text-shark-100 rounded-xl bg-shark-950 font-ubuntu font-bold text-lg focus:outline-none placeholder:text-shark-500"
 							whileFocus={{
 								scale: 1.01,
 								boxShadow: "0 0 0 2px rgba(67,180,172,0.35)",
@@ -305,14 +305,14 @@ function MySkills() {
 						/>
 					</div>
 
-					<div className="relative w-60">
+					<div className="relative w-72">
 						<Listbox value={sortOrder} onChange={setSortOrder}>
 							{({ open }) => (
 								<div className="relative">
 									<ListboxButton as={Fragment}>
 										<motion.button
 											layout
-											className={`w-full px-4 py-3 border-2 rounded-xl text-shark-100 text-left flex items-center justify-between bg-shark-950 font-ubuntu font-bold focus:outline-none ${
+											className={`w-full px-5 py-4 border-2 rounded-xl text-shark-100 text-left flex items-center justify-between bg-shark-950 font-ubuntu font-bold text-lg focus:outline-none ${
 												open || sortOrder
 													? "border-aqua-island-500"
 													: "border-aqua-island-500/40"
@@ -334,7 +334,7 @@ function MySkills() {
 												}}
 												transition={{ duration: 0.2 }}
 											>
-												<ChevronDown className="w-4 h-4 text-aqua-island-400" />
+												<ChevronDown className="w-5 h-5 text-aqua-island-400" />
 											</motion.div>
 										</motion.button>
 									</ListboxButton>
@@ -362,7 +362,7 @@ function MySkills() {
 																whileHover={{
 																	scale: 1.02,
 																}}
-																className={`cursor-pointer px-4 py-3 font-ubuntu font-bold transition-colors ${
+																className={`cursor-pointer px-5 py-4 font-ubuntu font-bold text-lg transition-colors ${
 																	selected
 																		? "bg-aqua-island-500/30 text-aqua-island-300"
 																		: active
@@ -390,17 +390,17 @@ function MySkills() {
 				>
 					<motion.div
 						layout
-						className="max-h-87 w-full overflow-y-auto overflow-x-hidden scrollbar-hide"
+						className="max-h-113 w-full overflow-y-auto overflow-x-hidden scrollbar-hide"
 					>
-						<table className="min-w-full text-sm text-shark-100 border-collapse table-fixed font-ubuntu font-bold">
+						<table className="min-w-full text-base text-shark-100 border-collapse table-fixed font-ubuntu font-bold">
 							<thead className="bg-shark-900 sticky top-0 z-10">
 								<tr className="border-b border-shark-700">
-									<th className="relative px-6 py-4 text-left font-semibold text-aqua-island-400">
+									<th className="relative px-7 py-5 text-left font-semibold text-aqua-island-400">
 										Skill Name
 										<span className="absolute right-0 top-3 bottom-3 w-0.5 bg-shark-600" />
 									</th>
 
-									<th className="relative px-6 py-4 text-left font-semibold text-aqua-island-400">
+									<th className="relative px-7 py-5 text-left font-semibold text-aqua-island-400">
 										AI Impact
 									</th>
 								</tr>
@@ -416,7 +416,7 @@ function MySkills() {
 										>
 											<td
 												colSpan={2}
-												className="px-6 py-8 text-center text-shark-500 font-bold font-ubuntu"
+												className="px-7 py-10 text-center text-shark-500 font-bold font-ubuntu text-lg"
 											>
 												Loading your skills...
 											</td>
@@ -438,14 +438,14 @@ function MySkills() {
 												}}
 												className="border-b bg-shark-950 border-shark-900 hover:bg-shark-800/70"
 											>
-												<td className="relative px-6 py-3 wrap-break-word align-top text-shark-200">
+												<td className="relative px-7 py-4 wrap-break-word align-top text-shark-200 text-lg">
 													{row.original.name}
 													<span className="absolute right-0 top-2 bottom-2 w-0.5 bg-shark-700/70" />
 												</td>
 
-												<td className="relative px-6 py-3 wrap-break-word align-top text-shark-200">
+												<td className="relative px-7 py-4 wrap-break-word align-top text-shark-200">
 													<span
-														className={`inline-flex rounded-md px-3 py-1 text-xs font-ubuntu font-bold text-shark-200 ${getImpactColor(
+														className={`inline-flex rounded-md px-4 py-1.5 text-sm font-ubuntu font-bold text-shark-200 ${getImpactColor(
 															row.original.impact,
 														)}`}
 													>
@@ -462,7 +462,7 @@ function MySkills() {
 										>
 											<td
 												colSpan={2}
-												className="px-6 py-8 text-center text-shark-500 font-bold font-ubuntu"
+												className="px-7 py-10 text-center text-shark-500 font-bold font-ubuntu text-lg"
 											>
 												No matching skills found.
 											</td>
@@ -478,7 +478,7 @@ function MySkills() {
 				<motion.button
 					type="button"
 					onClick={handleExportPDF}
-					className="w-fit mx-auto rounded-lg bg-aqua-island-500 tracking-wider px-4 pt-3 pb-2 text-2xl font-galhaudisplay-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-aqua-island-500/70"
+					className="w-fit mx-auto rounded-lg bg-aqua-island-500 tracking-wider px-5 pt-3.5 pb-2 text-3xl font-galhaudisplay-bold text-shark-200 transition ease-in-out duration-300 hover:scale-103 hover:shadow-lg hover:shadow-aqua-island-500/70"
 				>
 					Export as PDF
 				</motion.button>
