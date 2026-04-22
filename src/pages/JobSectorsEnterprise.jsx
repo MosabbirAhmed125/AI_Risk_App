@@ -1,9 +1,6 @@
-import "../index.css";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
-import toast from "react-hot-toast";
+import { Fragment, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import JobSeekerSidebar from "../components/JobSeekerSidebar";
 import {
 	Listbox,
 	ListboxButton,
@@ -18,78 +15,19 @@ import {
 	BrainCircuit,
 	Activity,
 	Gauge,
-	Zap,
+	Sparkles,
 } from "lucide-react";
+import "../index.css";
+import EnterpriseSidebar from "../components/EnterpriseSidebar";
 
-async function fetchUserSkills() {
-	const {
-		data: { user },
-		error: authError,
-	} = await supabase.auth.getUser();
-
-	if (authError) {
-		console.error("Auth error:", authError);
-		throw authError;
-	}
-
-	if (!user) {
-		throw new Error("User not authenticated.");
-	}
-
-	const { data: skillsetRows, error: skillsetsError } = await supabase
-		.from("skillsets")
-		.select("skill_id")
-		.eq("user_id", user.id);
-
-	if (skillsetsError) {
-		console.error("Error fetching skillsets:", skillsetsError);
-		throw skillsetsError;
-	}
-
-	if (!skillsetRows || skillsetRows.length === 0) {
-		return [];
-	}
-
-	const skillIds = [
-		...new Set(skillsetRows.map((row) => row.skill_id).filter(Boolean)),
-	];
-
-	const { data: skillsRows, error: skillsError } = await supabase
-		.from("skills")
-		.select("skill_id, skill_name")
-		.in("skill_id", skillIds);
-
-	if (skillsError) {
-		console.error("Error fetching skills:", skillsError);
-		throw skillsError;
-	}
-
-	const { data: riskRows, error: riskError } = await supabase
-		.from("skill_risk")
-		.select("skill_id, ai_impact")
-		.in("skill_id", skillIds);
-
-	if (riskError) {
-		console.error("Error fetching skill risk:", riskError);
-		throw riskError;
-	}
-
-	const skillsMap = new Map(
-		(skillsRows || []).map((row) => [row.skill_id, row.skill_name ?? ""]),
-	);
-
-	const riskMap = new Map(
-		(riskRows || []).map((row) => [row.skill_id, row.ai_impact ?? 0]),
-	);
-
-	return skillIds
-		.map((skillId) => ({
-			skillId,
-			name: skillsMap.get(skillId) ?? "",
-			impact: Number(riskMap.get(skillId) ?? 0),
-		}))
-		.filter((item) => item.name.trim() !== "");
-}
+// ---------- Dummy data ----------
+const DUMMY_SECTORS = [
+	{ label: "Data Entry Clerk", aiImpact: 88 },
+	{ label: "Software Engineer", aiImpact: 54 },
+	{ label: "Data Scientist", aiImpact: 72 },
+	{ label: "Graphic Designer", aiImpact: 41 },
+	{ label: "Registered Nurse", aiImpact: 18 },
+];
 
 // ---------- Helpers ----------
 function getImpactBucket(value) {
@@ -106,10 +44,11 @@ function getImpactMeta(value) {
 			color: "var(--color-narvik-500)",
 			soft: "rgba(69,174,57,0.12)",
 			border: "rgba(69,174,57,0.35)",
+			text: "text-narvik-500",
 			outlook: "Stable",
-			sensitivity: "Low AI substitution pressure",
+			automation: "Minimal automation sensitivity",
 			description:
-				"This skill remains highly defensible against AI automation. It relies on human judgment, contextual nuance, or hands-on capability that current models do not replicate well — keep investing in it as a core strength.",
+				"This sector shows limited exposure to AI automation. Human judgment, hands-on skill, and interpersonal nuance remain central to day-to-day work.",
 		};
 	}
 	if (bucket === "medium") {
@@ -118,10 +57,11 @@ function getImpactMeta(value) {
 			color: "var(--color-lightning-yellow-600)",
 			soft: "rgba(214,117,9,0.12)",
 			border: "rgba(214,117,9,0.4)",
-			outlook: "Evolving",
-			sensitivity: "Moderate augmentation pressure",
+			text: "text-lightning-yellow-600",
+			outlook: "Transforming",
+			automation: "Moderate automation sensitivity",
 			description:
-				"AI is actively reshaping how this skill is applied. Expect to work alongside intelligent tools, automate repetitive parts, and shift toward higher-leverage tasks. Pair it with complementary skills to stay ahead.",
+				"AI is reshaping core workflows in this sector. Expect augmented tooling, partial task automation, and a clear shift in required skill mix.",
 		};
 	}
 	return {
@@ -129,14 +69,15 @@ function getImpactMeta(value) {
 		color: "var(--color-coral-red-600)",
 		soft: "rgba(229,29,41,0.12)",
 		border: "rgba(229,29,41,0.4)",
-		outlook: "Vulnerable",
-		sensitivity: "High automation pressure",
+		text: "text-coral-red-600",
+		outlook: "Disrupting",
+		automation: "High automation sensitivity",
 		description:
-			"This skill faces strong displacement risk from AI. Many of its core tasks can be automated end-to-end. Consider deepening into adjacent strategic, creative, or interpersonal skills to remain resilient.",
+			"This sector faces strong AI-driven disruption. Many repetitive tasks are being absorbed by automated systems, accelerating role redefinition.",
 	};
 }
 
-// ---------- Donut chart ----------
+// ---------- Donut chart card ----------
 function ImpactDonut({ value }) {
 	const meta = getImpactMeta(value);
 	const data = [
@@ -150,7 +91,7 @@ function ImpactDonut({ value }) {
 				<PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
 					<defs>
 						<linearGradient
-							id="skillImpactFill"
+							id="impactFill"
 							x1="0"
 							y1="0"
 							x2="0"
@@ -181,7 +122,7 @@ function ImpactDonut({ value }) {
 						animationDuration={900}
 						animationEasing="ease-out"
 					>
-						<Cell fill="url(#skillImpactFill)" />
+						<Cell fill="url(#impactFill)" />
 						<Cell fill="rgba(255,255,255,0.05)" />
 					</Pie>
 					<Tooltip
@@ -199,6 +140,7 @@ function ImpactDonut({ value }) {
 				</PieChart>
 			</ResponsiveContainer>
 
+			{/* Center label */}
 			<div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
 				<motion.p
 					key={value}
@@ -220,36 +162,19 @@ function ImpactDonut({ value }) {
 }
 
 // ---------- Page ----------
-function MySkills() {
-	const [skills, setSkills] = useState([]);
-	const [loading, setLoading] = useState(true);
-	const [selectedSkill, setSelectedSkill] = useState(null);
-	const [skillSearch, setSkillSearch] = useState("");
+function JobSectorsEnterprise() {
+	const navigate = useNavigate();
+	const [selectedSector, setSelectedSector] = useState(null);
+	const [sectorSearch, setSectorSearch] = useState("");
 
-	useEffect(() => {
-		const loadSkills = async () => {
-			try {
-				setLoading(true);
-				const data = await fetchUserSkills();
-				setSkills(data);
-			} catch (error) {
-				console.error(error);
-				toast.error("Failed to load your skills.");
-			} finally {
-				setLoading(false);
-			}
-		};
+	const filteredSectors = useMemo(() => {
+		if (!sectorSearch.trim()) return DUMMY_SECTORS;
+		return DUMMY_SECTORS.filter((s) =>
+			s.label.toLowerCase().includes(sectorSearch.toLowerCase()),
+		);
+	}, [sectorSearch]);
 
-		loadSkills();
-	}, []);
-
-	const filteredSkills = useMemo(() => {
-		if (!skillSearch.trim()) return skills;
-		const q = skillSearch.toLowerCase();
-		return skills.filter((s) => s.name.toLowerCase().includes(q));
-	}, [skills, skillSearch]);
-
-	const meta = selectedSkill ? getImpactMeta(selectedSkill.impact) : null;
+	const meta = selectedSector ? getImpactMeta(selectedSector.aiImpact) : null;
 
 	return (
 		<motion.div
@@ -263,11 +188,11 @@ function MySkills() {
 				ease: "easeInOut",
 			}}
 			className="h-screen w-full overflow-hidden flex items-center justify-center
-            bg-[radial-gradient(ellipse_at_top,var(--color-aqua-island-800),var(--color-shark-800),var(--color-shark-950))]
+            bg-[radial-gradient(ellipse_at_top,var(--color-red-ribbon-900),var(--color-shark-900),var(--color-shark-950))]
             bg-no-repeat"
 		>
 			<div className="fixed top-0 left-0 h-screen z-40">
-				<JobSeekerSidebar />
+				<EnterpriseSidebar />
 			</div>
 
 			<motion.div
@@ -284,12 +209,11 @@ function MySkills() {
 					className="w-full max-w-3xl mx-auto shrink-0"
 				>
 					<Listbox
-						value={selectedSkill}
+						value={selectedSector}
 						onChange={(val) => {
-							setSelectedSkill(val);
-							setSkillSearch("");
+							setSelectedSector(val);
+							setSectorSearch("");
 						}}
-						disabled={loading || skills.length === 0}
 					>
 						{({ open }) => (
 							<div className="relative">
@@ -297,35 +221,31 @@ function MySkills() {
 									<motion.button
 										layout
 										className={`w-full px-5 py-4 border-2 rounded-xl text-left flex items-center justify-between bg-shark-950 font-ubuntu font-bold text-base focus:outline-none transition-colors ${
-											open || selectedSkill
-												? "border-aqua-island-500"
-												: "border-aqua-island-500/40"
+											open || selectedSector
+												? "border-red-ribbon-500"
+												: "border-red-ribbon-500/40"
 										}`}
 										whileFocus={{
 											boxShadow:
-												"0 0 0 2px rgba(67,180,172,0.35)",
+												"0 0 0 2px rgba(227,27,35,0.35)",
 										}}
 									>
 										<span
 											className={
-												selectedSkill
+												selectedSector
 													? "text-shark-100"
 													: "text-shark-500"
 											}
 										>
-											{loading
-												? "Loading your skills..."
-												: skills.length === 0
-													? "No skills found in your profile"
-													: selectedSkill
-														? selectedSkill.name
-														: "Select one of your skills"}
+											{selectedSector
+												? selectedSector.label
+												: "Select job sector"}
 										</span>
 										<motion.div
 											animate={{ rotate: open ? 180 : 0 }}
 											transition={{ duration: 0.2 }}
 										>
-											<ChevronDown className="w-5 h-5 text-aqua-island-400" />
+											<ChevronDown className="w-5 h-5 text-red-ribbon-400" />
 										</motion.div>
 									</motion.button>
 								</ListboxButton>
@@ -342,17 +262,17 @@ function MySkills() {
 											animate={{ opacity: 1, scale: 1 }}
 											exit={{ opacity: 0, scale: 0.98 }}
 											transition={{ duration: 0.15 }}
-											className="absolute mt-2 w-full z-50 bg-shark-900 border border-aqua-island-500/40 rounded-xl shadow-2xl overflow-hidden"
+											className="absolute mt-2 w-full z-50 bg-shark-900 border border-red-ribbon-500/40 rounded-xl shadow-2xl overflow-hidden"
 										>
 											<div className="px-3 pt-3 pb-2">
 												<div className="relative">
-													<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-aqua-island-400" />
+													<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-ribbon-400" />
 													<input
 														type="text"
-														placeholder="Search your skills..."
-														value={skillSearch}
+														placeholder="Search job title..."
+														value={sectorSearch}
 														onChange={(e) =>
-															setSkillSearch(
+															setSectorSearch(
 																e.target.value,
 															)
 														}
@@ -362,24 +282,25 @@ function MySkills() {
 														onKeyDown={(e) =>
 															e.stopPropagation()
 														}
-														className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-shark-950 border border-aqua-island-500/30 text-shark-200 font-ubuntu text-sm placeholder:text-shark-500 focus:outline-none focus:border-aqua-island-500"
+														className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-shark-950 border border-red-ribbon-500/30 text-shark-200 font-ubuntu text-sm placeholder:text-shark-500 focus:outline-none focus:border-red-ribbon-500"
 													/>
 												</div>
 											</div>
 
 											<div className="max-h-56 overflow-y-auto pb-2 scrollbar-hide">
-												{filteredSkills.length === 0 ? (
+												{filteredSectors.length ===
+												0 ? (
 													<li className="px-5 py-4 text-shark-500 font-ubuntu text-sm">
 														No results found.
 													</li>
 												) : (
-													filteredSkills.map(
-														(skill) => (
+													filteredSectors.map(
+														(sector) => (
 															<ListboxOption
 																key={
-																	skill.skillId
+																	sector.label
 																}
-																value={skill}
+																value={sector}
 																as={Fragment}
 															>
 																{({
@@ -389,17 +310,17 @@ function MySkills() {
 																	<li
 																		className={`flex items-center justify-between px-5 py-3 text-sm font-ubuntu cursor-pointer transition-colors ${
 																			active
-																				? "bg-aqua-island-500/10 text-shark-100"
+																				? "bg-red-ribbon-500/10 text-shark-100"
 																				: "text-shark-200"
-																		} ${selected ? "font-bold text-aqua-island-400" : ""}`}
+																		} ${selected ? "font-bold text-red-ribbon-400" : ""}`}
 																	>
 																		<span>
 																			{
-																				skill.name
+																				sector.label
 																			}
 																		</span>
 																		{selected && (
-																			<Check className="w-4 h-4 text-aqua-island-400" />
+																			<Check className="w-4 h-4 text-red-ribbon-400" />
 																		)}
 																	</li>
 																)}
@@ -419,7 +340,7 @@ function MySkills() {
 				{/* Card area */}
 				<div className="flex-1 min-h-0">
 					<AnimatePresence mode="wait">
-						{!selectedSkill ? (
+						{!selectedSector ? (
 							<motion.div
 								key="empty"
 								initial={{ opacity: 0, scale: 0.98 }}
@@ -429,29 +350,26 @@ function MySkills() {
 								className="h-full bg-shark-900 rounded-3xl border border-white/7 shadow-2xl flex items-center justify-center"
 							>
 								<div className="flex flex-col items-center text-center px-8">
-									<div className="w-20 h-20 rounded-2xl bg-aqua-island-500/10 border border-aqua-island-500/30 flex items-center justify-center mb-5">
+									<div className="w-20 h-20 rounded-2xl bg-red-ribbon-500/10 border border-red-ribbon-500/30 flex items-center justify-center mb-5">
 										<BrainCircuit
 											size={36}
-											className="text-aqua-island-500"
+											className="text-red-ribbon-500"
 										/>
 									</div>
 									<p className="text-2xl font-ubuntu font-bold text-shark-200">
-										{loading
-											? "Loading your skills..."
-											: skills.length === 0
-												? "No skills in your profile yet"
-												: "No skill selected"}
+										No sector selected
 									</p>
 									<p className="mt-3 text-[15px] font-ubuntu text-shark-400 max-w-lg">
-										{skills.length === 0 && !loading
-											? "Add skills to your profile to view AI impact analysis for each one."
-											: "Select one of your skills from the dropdown above to view its AI impact analysis, outlook, and risk breakdown."}
+										Select a job sector from the dropdown
+										above to view its AI impact analysis,
+										automation outlook, and enterprise
+										insights.
 									</p>
 								</div>
 							</motion.div>
 						) : (
 							<motion.div
-								key={selectedSkill.skillId}
+								key={selectedSector.label}
 								initial={{ opacity: 0, scale: 0.98 }}
 								animate={{ opacity: 1, scale: 1 }}
 								exit={{ opacity: 0, scale: 0.98 }}
@@ -461,16 +379,16 @@ function MySkills() {
 								{/* Card header */}
 								<div className="px-8 pt-5 pb-4 border-b border-white/5 shrink-0 flex items-center justify-between">
 									<div className="flex items-center gap-3">
-										<Zap
+										<Sparkles
 											size={20}
-											className="text-aqua-island-500"
+											className="text-red-ribbon-500"
 										/>
 										<div>
 											<h2 className="text-lg font-bold font-ubuntu text-shark-100">
-												{selectedSkill.name}
+												{selectedSector.label}
 											</h2>
 											<p className="text-xs font-ubuntu text-shark-500 mt-0.5">
-												AI impact & skill outlook
+												AI impact & automation outlook
 											</p>
 										</div>
 									</div>
@@ -503,7 +421,7 @@ function MySkills() {
 									>
 										<div className="w-full h-full max-h-115 aspect-square">
 											<ImpactDonut
-												value={selectedSkill.impact}
+												value={selectedSector.aiImpact}
 											/>
 										</div>
 									</motion.div>
@@ -548,10 +466,10 @@ function MySkills() {
 												<div className="flex items-center gap-2 mb-1.5">
 													<Activity
 														size={14}
-														className="text-aqua-island-500"
+														className="text-red-ribbon-500"
 													/>
 													<p className="text-[10px] font-ubuntu uppercase tracking-[0.2em] text-shark-500">
-														Skill Outlook
+														Sector Outlook
 													</p>
 												</div>
 												<p className="text-[15px] font-ubuntu font-bold text-shark-100">
@@ -562,19 +480,19 @@ function MySkills() {
 												<div className="flex items-center gap-2 mb-1.5">
 													<Gauge
 														size={14}
-														className="text-aqua-island-500"
+														className="text-red-ribbon-500"
 													/>
 													<p className="text-[10px] font-ubuntu uppercase tracking-[0.2em] text-shark-500">
-														AI Sensitivity
+														Automation
 													</p>
 												</div>
 												<p className="text-[15px] font-ubuntu font-bold text-shark-100">
-													{meta.sensitivity}
+													{meta.automation}
 												</p>
 											</div>
 										</motion.div>
 
-										{/* Scale + analytics summary */}
+										{/* Legend + analytics summary */}
 										<motion.div
 											initial={{
 												opacity: 0,
@@ -656,7 +574,9 @@ function MySkills() {
 														Score
 													</p>
 													<p className="mt-1 text-lg font-ubuntu font-bold text-shark-100">
-														{selectedSkill.impact}
+														{
+															selectedSector.aiImpact
+														}
 														<span className="text-shark-500 text-xs">
 															/100
 														</span>
@@ -696,4 +616,4 @@ function MySkills() {
 	);
 }
 
-export default MySkills;
+export default JobSectorsEnterprise;

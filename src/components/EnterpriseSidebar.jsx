@@ -6,6 +6,7 @@ import {
 	Home,
 	LayoutDashboard,
 	BrainCircuit,
+	BriefcaseBusiness,
 	ChartLine,
 	ScanSearch,
 	User,
@@ -20,6 +21,11 @@ const navItems = [
 		label: "Dashboard",
 		icon: LayoutDashboard,
 		path: "/enterprise-dashboard",
+	},
+	{
+		label: "Job Sectors",
+		icon: BriefcaseBusiness,
+		path: "/enterprise/job-sectors",
 	},
 	{ label: "Demanded Skills", icon: ScanSearch, path: "/demanded-skills" },
 	{

@@ -19,6 +19,7 @@ import AdminHome from "./pages/AdminHome";
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import JobSeekerHome from "./pages/JobSeekerHome";
 import EnterpriseHome from "./pages/EnterpriseHome";
+import JobSectorsEnterprise from "./pages/JobSectorsEnterprise";
 
 function App() {
 	const [session, setSession] = useState(null);
@@ -212,7 +213,7 @@ function App() {
 						) : userRole === "enterprise" ? (
 							<Navigate to="/enterprise-home" replace />
 						) : userRole === "admin" ? (
-							<Navigate to="/admin-panel" replace />
+							<Navigate to="/admin/panel" replace />
 						) : (
 							<LoginSignup />
 						)
@@ -334,6 +335,17 @@ function App() {
 					element={
 						session && userRole === "enterprise" ? (
 							<SalaryInsights />
+						) : (
+							<Navigate to="/" replace />
+						)
+					}
+				/>
+
+				<Route
+					path="/enterprise/job-sectors"
+					element={
+						session && userRole === "enterprise" ? (
+							<JobSectorsEnterprise />
 						) : (
 							<Navigate to="/" replace />
 						)

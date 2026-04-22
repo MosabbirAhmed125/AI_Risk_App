@@ -292,7 +292,7 @@ function SalaryInsights() {
 							</h2>
 						</div>
 						<p className="text-sm font-ubuntu text-shark-500">
-							10 Year Salary Trend (2015 - 2024) by Job Sector
+							10 Year Salary Trend (2015 - 2025) by Job Sector
 						</p>
 					</div>
 
@@ -317,7 +317,7 @@ function SalaryInsights() {
 								},
 								{
 									label: "Salary Trend",
-									value: `+${salaryTrend.toFixed(1)}%`,
+									value: `${salaryTrend > 0 ? "+" : ""}${salaryTrend.toFixed(1)}%`,
 									accent: true,
 								},
 								{
