@@ -15,7 +15,7 @@ import {
 	BrainCircuit,
 	Activity,
 	Gauge,
-	Sparkles,
+	BriefcaseBusiness,
 } from "lucide-react";
 import "../index.css";
 import EnterpriseSidebar from "../components/EnterpriseSidebar";
@@ -379,7 +379,7 @@ function JobSectorsEnterprise() {
 								{/* Card header */}
 								<div className="px-8 pt-5 pb-4 border-b border-white/5 shrink-0 flex items-center justify-between">
 									<div className="flex items-center gap-3">
-										<Sparkles
+										<BriefcaseBusiness
 											size={20}
 											className="text-red-ribbon-500"
 										/>
