@@ -393,9 +393,7 @@ function SkillsAdmin() {
 		>
 			<div className="scale-120 flex flex-col justify-center items-center">
 				{loading ? (
-					<div className="text-lightning-yellow-400 font-ubuntu text-lg">
-						Loading skills...
-					</div>
+					<div></div>
 				) : (
 					<>
 						<SkillsTable table={table} />

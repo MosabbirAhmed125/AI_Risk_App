@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import AdminSidebar from "../components/AdminSidebar";
 import { useEffect, useMemo, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import {
 	useReactTable,
 	getCoreRowModel,
@@ -397,9 +398,7 @@ function JobSectorsAdmin() {
 		>
 			<div className="scale-120 flex flex-col justify-center items-center">
 				{loading ? (
-					<div className="text-lightning-yellow-400 font-ubuntu text-lg">
-						Loading job sectors...
-					</div>
+					<div></div>
 				) : (
 					<>
 						<JobSectorsTable
