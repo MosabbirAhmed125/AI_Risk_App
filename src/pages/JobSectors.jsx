@@ -1,5 +1,5 @@
 // src/pages/JobSectors.jsx
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -13,22 +13,13 @@ import {
 	ChevronDown,
 	Search,
 	Check,
-	BrainCircuit,
 	Activity,
 	Gauge,
 	BriefcaseBusiness,
 } from "lucide-react";
 import "../index.css";
 import JobSeekerSidebar from "../components/JobSeekerSidebar";
-
-// ---------- Dummy data ----------
-const DUMMY_SECTORS = [
-	{ label: "AI Engineer", impact: 78 },
-	{ label: "Data Analyst", impact: 52 },
-	{ label: "Software Engineer", impact: 35 },
-	{ label: "Cybersecurity", impact: 65 },
-	{ label: "Product Manager", impact: 48 },
-];
+import { supabase } from "../lib/supabaseClient";
 
 // ---------- Helpers ----------
 function getImpactBucket(value) {
@@ -78,7 +69,133 @@ function getImpactMeta(value) {
 	};
 }
 
-// ---------- Donut chart card ----------
+// ---------- Calculation helpers ----------
+async function fetchUserSkillIds(userId) {
+	try {
+		const { data, error } = await supabase
+			.from("skillsets")
+			.select("skill_id")
+			.eq("user_id", userId);
+
+		if (error) throw error;
+		return data.map((row) => row.skill_id) || [];
+	} catch (err) {
+		console.error("Error fetching user skills:", err);
+		return [];
+	}
+}
+
+async function fetchJobRisk(jobId) {
+	try {
+		const { data, error } = await supabase
+			.from("job_risk")
+			.select("ai_impact")
+			.eq("job_id", jobId)
+			.single();
+
+		if (error) throw error;
+		return Number(data?.ai_impact) || 0;
+	} catch (err) {
+		console.error("Error fetching job risk:", err);
+		return 0;
+	}
+}
+
+async function fetchJobSkillMappings(jobId) {
+	try {
+		const { data, error } = await supabase
+			.from("job_skill_mapping")
+			.select("skill_id, skill_demand")
+			.eq("job_id", jobId);
+
+		if (error) throw error;
+		return data || [];
+	} catch (err) {
+		console.error("Error fetching job skill mappings:", err);
+		return [];
+	}
+}
+
+async function fetchSkillRisks(skillIds) {
+	if (!skillIds || skillIds.length === 0) return {};
+
+	try {
+		const { data, error } = await supabase
+			.from("skill_risk")
+			.select("skill_id, ai_impact")
+			.in("skill_id", skillIds);
+
+		if (error) throw error;
+
+		const map = {};
+		data.forEach((row) => {
+			map[row.skill_id] = Number(row.ai_impact) || 0;
+		});
+		return map;
+	} catch (err) {
+		console.error("Error fetching skill risks:", err);
+		return {};
+	}
+}
+
+async function calculatePersonalizedImpact({ jobId, userSkillIds }) {
+	try {
+		// Fetch job AI impact
+		const jobAIImpact = await fetchJobRisk(jobId);
+
+		// Fetch job skill mappings
+		const jobSkillMappings = await fetchJobSkillMappings(jobId);
+
+		if (!jobSkillMappings || jobSkillMappings.length === 0) {
+			// No skills mapped to this job, use job impact only
+			return Math.round(jobAIImpact);
+		}
+
+		// Find overlapping skills
+		const mappedSkillIds = jobSkillMappings.map((m) => m.skill_id);
+		const overlappingSkillIds = userSkillIds.filter((sid) =>
+			mappedSkillIds.includes(sid),
+		);
+
+		if (overlappingSkillIds.length === 0) {
+			// No overlapping skills, use job impact only
+			return Math.round(jobAIImpact);
+		}
+
+		// Fetch skill risks for overlapping skills
+		const skillRiskMap = await fetchSkillRisks(overlappingSkillIds);
+
+		// Calculate weighted average skill AI impact
+		let weightedNumerator = 0;
+		let weightedDenominator = 0;
+
+		overlappingSkillIds.forEach((skillId) => {
+			const mapping = jobSkillMappings.find(
+				(m) => m.skill_id === skillId,
+			);
+			if (mapping) {
+				const skillAIImpact = skillRiskMap[skillId] || 0;
+				const skillDemand = Number(mapping.skill_demand) || 0;
+
+				weightedNumerator += skillAIImpact * skillDemand;
+				weightedDenominator += skillDemand;
+			}
+		});
+
+		const avgSkillAIImpact =
+			weightedDenominator > 0
+				? weightedNumerator / weightedDenominator
+				: 0;
+
+		// Apply formula: finalAIImpact = (jobAIImpact * 0.6) + (avgSkillAIImpact * 0.4)
+		const finalAIImpact = jobAIImpact * 0.6 + avgSkillAIImpact * 0.4;
+
+		return Math.round(finalAIImpact);
+	} catch (err) {
+		console.error("Error calculating personalized impact:", err);
+		return 0;
+	}
+}
 function ImpactDonut({ value }) {
 	const meta = getImpactMeta(value);
 	const data = [
@@ -167,15 +284,85 @@ function JobSectors() {
 	const navigate = useNavigate();
 	const [selectedSector, setSelectedSector] = useState(null);
 	const [sectorSearch, setSectorSearch] = useState("");
+	const [sectors, setSectors] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [userSkillIds, setUserSkillIds] = useState([]);
+	const [calculatingImpact, setCalculatingImpact] = useState(false);
+
+	// Fetch jobs and user skills on mount
+	useEffect(() => {
+		const initializeData = async () => {
+			try {
+				setLoading(true);
+
+				// Get current user
+				const {
+					data: { user },
+					error: authError,
+				} = await supabase.auth.getUser();
+
+				if (authError || !user) {
+					console.error("Auth error or no user:", authError);
+					setLoading(false);
+					return;
+				}
+
+				// Fetch user skills
+				const userSkills = await fetchUserSkillIds(user.id);
+				setUserSkillIds(userSkills);
+
+				// Fetch all jobs
+				const { data: jobsData, error: jobsError } = await supabase
+					.from("jobs")
+					.select("job_id, job_title")
+					.order("job_title");
+
+				if (jobsError) throw jobsError;
+
+				const formattedSectors = (jobsData || []).map((job) => ({
+					job_id: job.job_id,
+					label: job.job_title,
+					impact: null, // Will be calculated on selection
+				}));
+
+				setSectors(formattedSectors);
+			} catch (err) {
+				console.error("Error initializing data:", err);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		initializeData();
+	}, []);
+
+	// Calculate personalized impact when sector changes
+	useEffect(() => {
+		if (selectedSector && !selectedSector.impact) {
+			setCalculatingImpact(true);
+			calculatePersonalizedImpact({
+				jobId: selectedSector.job_id,
+				userSkillIds,
+			})
+				.then((impact) => {
+					setSelectedSector((prev) =>
+						prev ? { ...prev, impact } : null,
+					);
+				})
+				.finally(() => setCalculatingImpact(false));
+		}
+	}, [selectedSector?.job_id, userSkillIds]);
 
 	const filteredSectors = useMemo(() => {
-		if (!sectorSearch.trim()) return DUMMY_SECTORS;
-		return DUMMY_SECTORS.filter((s) =>
+		if (!sectorSearch.trim()) return sectors;
+		return sectors.filter((s) =>
 			s.label.toLowerCase().includes(sectorSearch.toLowerCase()),
 		);
-	}, [sectorSearch]);
+	}, [sectorSearch, sectors]);
 
-	const meta = selectedSector ? getImpactMeta(selectedSector.impact) : null;
+	const meta = selectedSector
+		? getImpactMeta(selectedSector.impact || 0)
+		: null;
 
 	return (
 		<motion.div
@@ -215,6 +402,7 @@ function JobSectors() {
 							setSelectedSector(val);
 							setSectorSearch("");
 						}}
+						disabled={loading}
 					>
 						{({ open }) => (
 							<div className="relative">
@@ -240,7 +428,9 @@ function JobSectors() {
 										>
 											{selectedSector
 												? selectedSector.label
-												: "Select job sector"}
+												: loading
+													? "Loading job sectors..."
+													: "Select job sector"}
 										</span>
 										<motion.div
 											animate={{ rotate: open ? 180 : 0 }}
@@ -289,8 +479,12 @@ function JobSectors() {
 											</div>
 
 											<div className="max-h-56 overflow-y-auto pb-2 scrollbar-hide">
-												{filteredSectors.length ===
-												0 ? (
+												{loading ? (
+													<li className="px-5 py-4 text-shark-500 font-ubuntu text-sm">
+														Loading job sectors...
+													</li>
+												) : filteredSectors.length ===
+												  0 ? (
 													<li className="px-5 py-4 text-shark-500 font-ubuntu text-sm">
 														No results found.
 													</li>
@@ -299,7 +493,7 @@ function JobSectors() {
 														(sector) => (
 															<ListboxOption
 																key={
-																	sector.label
+																	sector.job_id
 																}
 																value={sector}
 																as={Fragment}
@@ -352,7 +546,7 @@ function JobSectors() {
 							>
 								<div className="flex flex-col items-center text-center px-8">
 									<div className="w-20 h-20 rounded-2xl bg-aqua-island-500/10 border border-aqua-island-500/30 flex items-center justify-center mb-5">
-										<BrainCircuit
+										<BriefcaseBusiness
 											size={36}
 											className="text-aqua-island-500"
 										/>

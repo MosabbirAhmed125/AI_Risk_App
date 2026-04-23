@@ -15,10 +15,9 @@ import {
 	ChevronDown,
 	Search,
 	Check,
-	BrainCircuit,
+	Zap,
 	Activity,
 	Gauge,
-	Zap,
 } from "lucide-react";
 
 async function fetchUserSkills() {
@@ -430,7 +429,7 @@ function MySkills() {
 							>
 								<div className="flex flex-col items-center text-center px-8">
 									<div className="w-20 h-20 rounded-2xl bg-aqua-island-500/10 border border-aqua-island-500/30 flex items-center justify-center mb-5">
-										<BrainCircuit
+										<Zap
 											size={36}
 											className="text-aqua-island-500"
 										/>

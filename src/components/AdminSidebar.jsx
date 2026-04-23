@@ -6,6 +6,9 @@ import {
 	Home,
 	KeySquare,
 	BrainCircuit,
+	BriefcaseBusiness,
+	Zap,
+	UserCog,
 	LogOut,
 	ChevronLeft,
 } from "lucide-react";
@@ -14,9 +17,19 @@ import toast from "react-hot-toast";
 const navItems = [
 	{ label: "Home", icon: Home, path: "/admin" },
 	{
-		label: "Admin Panel",
-		icon: KeySquare,
-		path: "/admin/panel",
+		label: "Users",
+		icon: UserCog,
+		path: "/admin/users",
+	},
+	{
+		label: "Job Sectors",
+		icon: BriefcaseBusiness,
+		path: "/admin/job-sectors",
+	},
+	{
+		label: "Skills",
+		icon: Zap,
+		path: "/admin/skills",
 	},
 ];
 

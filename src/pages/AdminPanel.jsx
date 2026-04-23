@@ -212,19 +212,18 @@ function AdminPanel() {
             bg-[radial-gradient(ellipse_at_top,var(--color-lightning-yellow-800),var(--color-shark-800),var(--color-shark-950))]
             bg-no-repeat"
 		>
-			<p className="text-6xl font-borel text-shark-200">welcome!</p>
-			<br></br>
-			<AdminTable table={table}></AdminTable>
-			<br></br>
-			<br></br>
-			<button
-				onClick={handleExportPDF}
-				className="rounded-lg h-12 w-43 bg-cello-600 text-xl font-bold font-ubuntu text-shark-200 transition
-				ease-in-out duration-300 delay-75 hover:bg-shark-200 hover:text-cello-600
-				hover:shadow-lg hover:scale-103 hover:shadow-cello-600/70"
-			>
-				Export as PDF
-			</button>
+			<div className="scale-120 flex flex-col justify-center items-center">
+				<AdminTable table={table}></AdminTable>
+				<br></br>
+				<br></br>
+				<motion.button
+					type="button"
+					onClick={handleExportPDF}
+					className="rounded-lg w-fit h-fit bg-cello-500 px-5 pt-3 pb-1.5 text-2xl font-galhaudisplay-bold text-shark-200 transition hover:scale-103 hover:shadow-lg hover:shadow-cello-500/70"
+				>
+					Export as PDF
+				</motion.button>
+			</div>
 
 			<div className="absolute left-0">
 				<AdminSidebar></AdminSidebar>

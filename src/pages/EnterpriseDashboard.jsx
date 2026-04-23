@@ -1,13 +1,13 @@
-import { useNavigate } from "react-router-dom";
+// src/pages/EnterpriseDashboard.jsx
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-	Building2,
-	Users,
 	DollarSign,
-	Brain,
 	TrendingUp,
 	TrendingDown,
-	Sparkles,
+	Crown,
+	Brain,
+	Zap,
 } from "lucide-react";
 import {
 	BarChart,
@@ -20,60 +20,36 @@ import {
 	RadialBarChart,
 	RadialBar,
 	PolarAngleAxis,
+	Cell,
 } from "recharts";
 
 import "../index.css";
 import EnterpriseSidebar from "../components/EnterpriseSidebar";
+import { supabase } from "../lib/supabaseClient"; // adjust path if different
 
 // ───────────────────────────────────────────────────────────
-// Dummy data (replace with Supabase queries later)
+// Helpers
 // ───────────────────────────────────────────────────────────
-const kpis = [
-	{
-		label: "Open Roles",
-		value: "42",
-		delta: "+8.2%",
-		trend: "up",
-		icon: Building2,
-	},
-	{
-		label: "Active Candidates",
-		value: "1,284",
-		delta: "+12.4%",
-		trend: "up",
-		icon: Users,
-	},
-	{
-		label: "Avg. Offer (USD)",
-		value: "$92,450",
-		delta: "+2.5%",
-		trend: "up",
-		icon: DollarSign,
-	},
-	{
-		label: "AI Disruption Index",
-		value: "37 / 100",
-		delta: "-1.8%",
-		trend: "down",
-		icon: Brain,
-	},
-];
+const formatCurrency = (n) =>
+	typeof n === "number" && !Number.isNaN(n)
+		? n.toLocaleString("en-US", {
+				style: "currency",
+				currency: "USD",
+				maximumFractionDigits: 0,
+			})
+		: "—";
 
-const demandedSkills = [
-	{ skill: "Machine Learning", demand: 92 },
-	{ skill: "React / Next.js", demand: 84 },
-	{ skill: "Data Engineering", demand: 78 },
-	{ skill: "Cloud (AWS/GCP)", demand: 73 },
-	{ skill: "LLM Ops", demand: 69 },
-	{ skill: "Product Design", demand: 58 },
-	{ skill: "DevOps / SRE", demand: 54 },
-];
+const formatPercentChange = (n) => {
+	if (typeof n !== "number" || Number.isNaN(n)) return "—";
+	const sign = n > 0 ? "+" : "";
+	return `${sign}${n.toFixed(1)}%`;
+};
 
-const aiImpact = [
-	{ name: "Low Risk", value: 28, fill: "#10b981" },
-	{ name: "Moderate", value: 46, fill: "#f59e0b" },
-	{ name: "High Risk", value: 72, fill: "#ef4444" },
-];
+const formatAIImpact = (n) =>
+	typeof n === "number" && !Number.isNaN(n) ? `${Math.round(n)}%` : "—";
+
+const formatScore = (n) =>
+	typeof n === "number" && !Number.isNaN(n) ? `${Math.round(n)} / 100` : "—";
 
 // ───────────────────────────────────────────────────────────
 // Reusable card shell
@@ -88,288 +64,533 @@ function Card({ children, className = "" }) {
 	);
 }
 
-function KpiCard({ label, value, delta, trend, icon: Icon, index }) {
-	const TrendIcon = trend === "up" ? TrendingUp : TrendingDown;
-	const trendColor =
-		trend === "up" ? "text-emerald-400" : "text-red-ribbon-400";
-
+// ───────────────────────────────────────────────────────────
+// Custom tooltips (consistent dark style)
+// ───────────────────────────────────────────────────────────
+function BarTooltip({ active, payload, label }) {
+	if (!active || !payload || !payload.length) return null;
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.4, delay: index * 0.08 }}
-			whileHover={{ y: -4, transition: { duration: 0.2 } }}
-		>
-			<Card className="p-5 hover:border-red-ribbon-500/50 transition-colors">
-				<div className="flex items-start justify-between">
-					<div>
-						<p className="text-xs font-ubuntu uppercase tracking-widest text-shark-400">
-							{label}
-						</p>
-						<p className="mt-2 text-3xl font-bold text-shark-100 font-ubuntu">
-							{value}
-						</p>
-						<div
-							className={`mt-2 flex items-center gap-1 text-sm ${trendColor}`}
-						>
-							<TrendIcon className="h-4 w-4" />
-							<span className="font-medium">{delta}</span>
-							<span className="text-shark-500 ml-1">
-								vs last month
-							</span>
-						</div>
-					</div>
-					<div className="rounded-xl bg-red-ribbon-500/10 p-3 ring-1 ring-red-ribbon-500/30">
-						<Icon className="h-5 w-5 text-red-ribbon-400" />
-					</div>
-				</div>
-			</Card>
-		</motion.div>
+		<div className="rounded-xl border border-shark-700/70 bg-shark-950/95 backdrop-blur px-3 py-2 shadow-xl">
+			<p className="font-ubuntu text-xs uppercase tracking-wider text-shark-400">
+				{label}
+			</p>
+			<p className="font-ubuntu text-sm text-shark-100">
+				Demand:{" "}
+				<span className="text-red-ribbon-500 font-semibold">
+					{payload[0].value}
+				</span>
+			</p>
+		</div>
+	);
+}
+
+function RadialTooltip({ active, payload }) {
+	if (!active || !payload || !payload.length) return null;
+	const item = payload[0].payload;
+	return (
+		<div className="rounded-xl border border-shark-700/70 bg-shark-950/95 backdrop-blur px-3 py-2 shadow-xl">
+			<p className="font-ubuntu text-xs uppercase tracking-wider text-shark-400">
+				{item.name}
+			</p>
+			<p className="font-ubuntu text-sm text-shark-100">
+				<span className="font-semibold" style={{ color: item.fill }}>
+					{item.value}%
+				</span>{" "}
+				of demanded skills
+			</p>
+		</div>
 	);
 }
 
 // ───────────────────────────────────────────────────────────
-// Main page
+// Data fetchers
 // ───────────────────────────────────────────────────────────
-function EnterpriseDashboard() {
-	const navigate = useNavigate();
+async function fetchEnterpriseJobIds(userId) {
+	const { data, error } = await supabase
+		.from("hiring_fields")
+		.select("field")
+		.eq("company_id", userId);
+	if (error) throw error;
+	return (data ?? []).map((r) => r.field).filter(Boolean);
+}
+
+async function fetchDashboardMetrics(jobIds) {
+	if (!jobIds.length) {
+		return {
+			avgSalary: null,
+			peakSalary: null,
+			salaryTrend: null,
+			avgAiImpact: null,
+		};
+	}
+
+	// Salaries
+	const { data: salaries, error: salariesErr } = await supabase
+		.from("salary_history")
+		.select("job_id, year, average_salary")
+		.in("job_id", jobIds);
+	if (salariesErr) throw salariesErr;
+
+	const sal2025 = (salaries ?? []).filter((r) => Number(r.year) === 2025);
+	const avgSalary = sal2025.length
+		? sal2025.reduce((s, r) => s + Number(r.average_salary), 0) /
+			sal2025.length
+		: null;
+
+	const peakSalary = (salaries ?? []).length
+		? Math.max(...salaries.map((r) => Number(r.average_salary)))
+		: null;
+
+	// Salary trend
+	const { data: trends, error: trendsErr } = await supabase
+		.from("salary_trend")
+		.select("job_id, salary_change")
+		.in("job_id", jobIds);
+	if (trendsErr) throw trendsErr;
+
+	const salaryTrend = (trends ?? []).length
+		? trends.reduce((s, r) => s + Number(r.salary_change), 0) /
+			trends.length
+		: null;
+
+	// Avg AI impact (unweighted across demanded-skill occurrences)
+	// We treat each (job_id, skill_id) demanded-skill occurrence as one entry
+	// in the pool, then average the corresponding skill_risk.ai_impact.
+	const { data: mappings, error: mapErr } = await supabase
+		.from("job_skill_mapping")
+		.select("skill_id")
+		.in("job_id", jobIds);
+	if (mapErr) throw mapErr;
+
+	const occurrences = (mappings ?? []).map((m) => m.skill_id);
+	let avgAiImpact = null;
+	if (occurrences.length) {
+		const uniqueSkillIds = [...new Set(occurrences)];
+		const { data: risks, error: riskErr } = await supabase
+			.from("skill_risk")
+			.select("skill_id, ai_impact")
+			.in("skill_id", uniqueSkillIds);
+		if (riskErr) throw riskErr;
+
+		const riskMap = new Map(
+			(risks ?? []).map((r) => [r.skill_id, Number(r.ai_impact)]),
+		);
+		const impacts = occurrences
+			.map((sid) => riskMap.get(sid))
+			.filter((v) => typeof v === "number" && !Number.isNaN(v));
+		avgAiImpact = impacts.length
+			? impacts.reduce((s, v) => s + v, 0) / impacts.length
+			: null;
+	}
+
+	return { avgSalary, peakSalary, salaryTrend, avgAiImpact };
+}
+
+async function fetchTopDemandedSkills(jobIds) {
+	if (!jobIds.length) return [];
+
+	const { data: mappings, error } = await supabase
+		.from("job_skill_mapping")
+		.select("skill_id, skill_demand")
+		.in("job_id", jobIds);
+	if (error) throw error;
+	if (!mappings?.length) return [];
+
+	// Aggregate total demand per skill across connected sectors
+	const totals = new Map();
+	for (const m of mappings) {
+		totals.set(
+			m.skill_id,
+			(totals.get(m.skill_id) ?? 0) + Number(m.skill_demand),
+		);
+	}
+
+	const skillIds = [...totals.keys()];
+	const { data: skills, error: skillsErr } = await supabase
+		.from("skills")
+		.select("skill_id, skill_name")
+		.in("skill_id", skillIds);
+	if (skillsErr) throw skillsErr;
+
+	const nameMap = new Map(
+		(skills ?? []).map((s) => [s.skill_id, s.skill_name]),
+	);
+
+	return [...totals.entries()]
+		.map(([skill_id, demand]) => ({
+			skill: nameMap.get(skill_id) ?? skill_id,
+			demand,
+		}))
+		.sort((a, b) => b.demand - a.demand)
+		.slice(0, 10);
+}
+
+async function fetchAiImpactDistribution(jobIds) {
+	if (!jobIds.length) {
+		return [
+			{ name: "Low Risk", value: 0, fill: "#10b981" },
+			{ name: "Moderate", value: 0, fill: "#f59e0b" },
+			{ name: "High Risk", value: 0, fill: "#ef4444" },
+		];
+	}
+
+	const { data: mappings, error } = await supabase
+		.from("job_skill_mapping")
+		.select("skill_id")
+		.in("job_id", jobIds);
+	if (error) throw error;
+
+	const occurrences = (mappings ?? []).map((m) => m.skill_id);
+	if (!occurrences.length) {
+		return [
+			{ name: "Low Risk", value: 0, fill: "#10b981" },
+			{ name: "Moderate", value: 0, fill: "#f59e0b" },
+			{ name: "High Risk", value: 0, fill: "#ef4444" },
+		];
+	}
+
+	const uniqueSkillIds = [...new Set(occurrences)];
+	const { data: risks, error: riskErr } = await supabase
+		.from("skill_risk")
+		.select("skill_id, ai_impact")
+		.in("skill_id", uniqueSkillIds);
+	if (riskErr) throw riskErr;
+
+	const riskMap = new Map(
+		(risks ?? []).map((r) => [r.skill_id, Number(r.ai_impact)]),
+	);
+
+	let low = 0,
+		mid = 0,
+		high = 0;
+	for (const sid of occurrences) {
+		const v = riskMap.get(sid);
+		if (typeof v !== "number" || Number.isNaN(v)) continue;
+		if (v <= 33) low++;
+		else if (v <= 66) mid++;
+		else high++;
+	}
+	const total = low + mid + high || 1;
+	const pct = (n) => Math.round((n / total) * 100);
+
+	return [
+		{ name: "Low Risk", value: pct(low), fill: "#10b981" },
+		{ name: "Moderate", value: pct(mid), fill: "#f59e0b" },
+		{ name: "High Risk", value: pct(high), fill: "#ef4444" },
+	];
+}
+
+// ───────────────────────────────────────────────────────────
+// Main component
+// ───────────────────────────────────────────────────────────
+export default function EnterpriseDashboard() {
+	const [loading, setLoading] = useState(true);
+	const [metrics, setMetrics] = useState({
+		avgSalary: null,
+		peakSalary: null,
+		salaryTrend: null,
+		avgAiImpact: null,
+	});
+	const [demandedSkills, setDemandedSkills] = useState([]);
+	const [aiImpact, setAiImpact] = useState([]);
+
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			try {
+				setLoading(true);
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (!user) {
+					if (!cancelled) setLoading(false);
+					return;
+				}
+
+				const jobIds = await fetchEnterpriseJobIds(user.id);
+				const [m, skills, dist] = await Promise.all([
+					fetchDashboardMetrics(jobIds),
+					fetchTopDemandedSkills(jobIds),
+					fetchAiImpactDistribution(jobIds),
+				]);
+
+				if (cancelled) return;
+				setMetrics(m);
+				setDemandedSkills(skills);
+				setAiImpact(dist);
+			} catch (e) {
+				console.error("[EnterpriseDashboard] data error:", e);
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	const kpis = useMemo(
+		() => [
+			{
+				label: "Avg. Salary (2025)",
+				value: formatCurrency(metrics.avgSalary),
+				icon: DollarSign,
+			},
+			{
+				label: "Peak Salary",
+				value: formatCurrency(metrics.peakSalary),
+				icon: Crown,
+			},
+			{
+				label: "Salary Trend",
+				value: formatPercentChange(metrics.salaryTrend),
+				icon:
+					(metrics.salaryTrend ?? 0) >= 0 ? TrendingUp : TrendingDown,
+				accent:
+					(metrics.salaryTrend ?? 0) >= 0
+						? "text-emerald-400"
+						: "text-red-ribbon-500",
+			},
+			{
+				label: "Avg. AI Impact",
+				value: formatAIImpact(metrics.avgAiImpact),
+				icon: Brain,
+			},
+		],
+		[metrics],
+	);
 
 	return (
-		<motion.div
-			animate={{
-				backgroundSize: ["100% 100%", "115% 115%", "100% 100%"],
-				backgroundPosition: ["50% 0%", "50% 15%", "50% 0%"],
-			}}
-			transition={{
-				duration: 2,
-				repeat: Infinity,
-				ease: "easeInOut",
-			}}
-			className="min-h-screen flex
-      bg-[radial-gradient(ellipse_at_top,var(--color-red-ribbon-900),var(--color-shark-900),var(--color-shark-950))]
-      bg-no-repeat"
+		<div
+			className="min-h-screen w-full overflow-hidden
+        bg-[radial-gradient(ellipse_at_top,var(--color-red-ribbon-900),var(--color-shark-900),var(--color-shark-950))]
+        bg-no-repeat"
 		>
-			{/* Sidebar */}
-			<div className="shrink-0">
-				<EnterpriseSidebar />
-			</div>
-
-			{/* Main content */}
-			<main className="flex-1 px-6 py-8 lg:px-10 lg:py-10 overflow-y-auto">
-				{/* Header */}
+			<main className="ml-24 mr-6 py-6 h-screen flex flex-col">
 				<motion.div
-					initial={{ opacity: 0, y: -10 }}
+					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.4 }}
-					className="mb-8 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between"
+					className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-6"
 				>
-					<div>
-						<h1 className="mt-1 text-4xl lg:text-5xl font-borel text-shark-100">
-							Dashboard
-						</h1>
-						<p className="mt-2 text-shark-400 font-ubuntu">
-							Real-time hiring, salary, and AI-impact signals
-							across your sectors.
-						</p>
-					</div>
-
-					<div className="flex items-center gap-3">
-						<button className="rounded-xl border border-shark-700 bg-shark-900/60 px-4 py-2 text-sm font-ubuntu text-shark-200 hover:border-red-ribbon-500/60 transition">
-							Export Report
-						</button>
-						<button className="rounded-xl bg-red-ribbon-500 px-4 py-2 text-sm font-ubuntu font-semibold text-white hover:bg-red-ribbon-600 transition shadow-lg shadow-red-ribbon-500/30">
-							+ New Posting
-						</button>
-					</div>
-				</motion.div>
-
-				{/* KPI grid */}
-				<section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-					{kpis.map((kpi, i) => (
-						<KpiCard key={kpi.label} index={i} {...kpi} />
-					))}
-				</section>
-
-				{/* Charts row */}
-				<section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-					{/* Demanded skills — 2/3 width */}
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.5, delay: 0.3 }}
-						className="lg:col-span-2"
-					>
-						<Card className="p-6">
-							<div className="mb-6 flex items-center justify-between">
-								<div>
-									<h2 className="text-xl font-bold font-ubuntu text-shark-100">
-										Most Demanded Skills
-									</h2>
-									<p className="text-sm text-shark-400 mt-1">
-										Technology sector · last 30 days
-									</p>
-								</div>
-								<select className="rounded-lg bg-shark-950/80 border border-shark-700 text-shark-200 text-sm px-3 py-2 font-ubuntu focus:outline-none focus:border-red-ribbon-500">
-									<option>Technology</option>
-									<option>Finance</option>
-									<option>Healthcare</option>
-								</select>
-							</div>
-
-							<ResponsiveContainer width="100%" height={340}>
-								<BarChart
-									data={demandedSkills}
-									layout="vertical"
-									margin={{
-										left: 20,
-										right: 20,
-										top: 5,
-										bottom: 5,
+					{/* KPI ROW */}
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+						{kpis.map((kpi, i) => {
+							const Icon = kpi.icon;
+							return (
+								<motion.div
+									key={kpi.label}
+									initial={{ opacity: 0, y: 10 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{
+										duration: 0.35,
+										delay: i * 0.05,
 									}}
 								>
-									<defs>
-										<linearGradient
-											id="barGrad"
-											x1="0"
-											y1="0"
-											x2="1"
-											y2="0"
+									<Card className="p-6 h-full">
+										<div className="flex items-start justify-between">
+											<div>
+												<p className="font-ubuntu text-xs uppercase tracking-[0.2em] text-shark-400">
+													{kpi.label}
+												</p>
+												<p
+													className={`mt-3 font-ubuntu text-3xl text-shark-50 ${
+														kpi.accent ?? ""
+													}`}
+												>
+													{loading ? "…" : kpi.value}
+												</p>
+											</div>
+											<div className="w-11 h-11 rounded-xl flex items-center justify-center bg-red-ribbon-500/15 text-red-ribbon-500 border border-red-ribbon-500/30">
+												<Icon size={20} />
+											</div>
+										</div>
+									</Card>
+								</motion.div>
+							);
+						})}
+					</div>
+
+					{/* CHARTS ROW */}
+					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+						{/* Most Demanded Skills */}
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.4, delay: 0.1 }}
+							className="lg:col-span-2 min-h-0"
+						>
+							<Card className="p-6 h-full flex flex-col">
+								<div className="flex items-center justify-between mb-4">
+									<div>
+										<h2 className="font-ubuntu font-bold text-lg text-shark-100">
+											Most Demanded Skills
+										</h2>
+										<p className="font-ubuntu text-xs text-shark-400 mt-0.5">
+											Top 10 across your connected job
+											sectors
+										</p>
+									</div>
+									<Zap
+										size={16}
+										className="text-red-ribbon-500"
+									/>
+								</div>
+
+								<div className="flex-1 min-h-0">
+									{demandedSkills.length === 0 && !loading ? (
+										<div className="h-full flex items-center justify-center text-shark-400 font-ubuntu text-sm">
+											No demanded skills yet for your
+											hiring fields.
+										</div>
+									) : (
+										<ResponsiveContainer
+											width="100%"
+											height="100%"
 										>
-											<stop
-												offset="0%"
-												stopColor="#ef4444"
-												stopOpacity={0.9}
-											/>
-											<stop
-												offset="100%"
-												stopColor="#b91c1c"
-												stopOpacity={0.9}
-											/>
-										</linearGradient>
-									</defs>
-									<CartesianGrid
-										strokeDasharray="3 3"
-										stroke="#ffffff10"
-										horizontal={false}
-									/>
-									<XAxis
-										type="number"
-										domain={[0, 100]}
-										stroke="#9ca3af"
-										fontSize={12}
-									/>
-									<YAxis
-										type="category"
-										dataKey="skill"
-										stroke="#d1d5db"
-										fontSize={12}
-										width={130}
-									/>
-									<Tooltip
-										cursor={{ fill: "#ffffff08" }}
-										contentStyle={{
-											background: "#0b0b0d",
-											border: "1px solid #ef4444",
-											borderRadius: "12px",
-											color: "#f3f4f6",
-										}}
-										formatter={(v) => [
-											`${v}% demand`,
-											"Demand",
-										]}
-									/>
-									<Bar
-										dataKey="demand"
-										fill="url(#barGrad)"
-										radius={[0, 8, 8, 0]}
-										barSize={22}
-									/>
-								</BarChart>
-							</ResponsiveContainer>
-						</Card>
-					</motion.div>
+											<BarChart
+												data={demandedSkills}
+												layout="vertical"
+												margin={{
+													top: 4,
+													right: 24,
+													left: 8,
+													bottom: 4,
+												}}
+											>
+												<CartesianGrid
+													stroke="rgba(255,255,255,0.06)"
+													horizontal={false}
+												/>
+												<XAxis
+													type="number"
+													stroke="rgba(255,255,255,0.4)"
+													tick={{
+														fill: "rgba(255,255,255,0.55)",
+														fontSize: 11,
+													}}
+													domain={[0, "dataMax + 10"]}
+												/>
+												<YAxis
+													type="category"
+													dataKey="skill"
+													width={140}
+													stroke="rgba(255,255,255,0.4)"
+													tick={{
+														fill: "rgba(255,255,255,0.7)",
+														fontSize: 12,
+													}}
+												/>
+												<Tooltip
+													cursor={{
+														fill: "rgba(229,29,41,0.08)",
+													}}
+													content={<BarTooltip />}
+												/>
+												<Bar
+													dataKey="demand"
+													fill="var(--color-red-ribbon-500)"
+													radius={0}
+													barSize={18}
+												/>
+											</BarChart>
+										</ResponsiveContainer>
+									)}
+								</div>
+							</Card>
+						</motion.div>
 
-					{/* AI Impact radial — 1/3 width */}
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.5, delay: 0.4 }}
-					>
-						<Card className="p-6 h-full">
-							<div className="mb-2">
-								<h2 className="text-xl font-bold font-ubuntu text-shark-100">
-									AI Impact Distribution
-								</h2>
-								<p className="text-sm text-shark-400 mt-1">
-									Risk across active sectors
-								</p>
-							</div>
+						{/* AI Impact Distribution */}
+						<motion.div
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.4, delay: 0.15 }}
+							className="min-h-0"
+						>
+							<Card className="p-6 h-full flex flex-col">
+								<div className="flex items-center justify-between mb-4">
+									<div>
+										<h2 className="font-ubuntu text-lg text-shark-100">
+											AI Impact Distribution
+										</h2>
+										<p className="font-ubuntu text-xs text-shark-400 mt-0.5">
+											Across demanded skills in your
+											sectors
+										</p>
+									</div>
+									<Brain
+										size={16}
+										className="text-red-ribbon-500"
+									/>
+								</div>
 
-							<ResponsiveContainer width="100%" height={260}>
-								<RadialBarChart
-									innerRadius="40%"
-									outerRadius="100%"
-									data={aiImpact}
-									startAngle={90}
-									endAngle={-270}
-								>
-									<PolarAngleAxis
-										type="number"
-										domain={[0, 100]}
-										angleAxisId={0}
-										tick={false}
-									/>
-									<RadialBar
-										background={{ fill: "#ffffff08" }}
-										dataKey="value"
-										cornerRadius={10}
-									/>
-									<Tooltip
-										contentStyle={{
-											background: "#0b0b0d",
-											border: "1px solid #ef4444",
-											borderRadius: "12px",
-											color: "#f3f4f6",
-										}}
-									/>
-								</RadialBarChart>
-							</ResponsiveContainer>
-
-							{/* Legend */}
-							<div className="mt-4 space-y-2">
-								{aiImpact.map((seg) => (
-									<div
-										key={seg.name}
-										className="flex items-center justify-between text-sm font-ubuntu"
+								<div className="flex-1 min-h-0">
+									<ResponsiveContainer
+										width="100%"
+										height="100%"
 									>
-										<div className="flex items-center gap-2">
-											<span
-												className="h-3 w-3 rounded-full"
-												style={{ background: seg.fill }}
+										<RadialBarChart
+											innerRadius="35%"
+											outerRadius="100%"
+											data={aiImpact}
+											startAngle={90}
+											endAngle={-270}
+										>
+											<PolarAngleAxis
+												type="number"
+												domain={[0, 100]}
+												tick={false}
 											/>
-											<span className="text-shark-300">
-												{seg.name}
+											<RadialBar
+												background={{
+													fill: "rgba(255,255,255,0.05)",
+												}}
+												dataKey="value"
+												cornerRadius={15}
+											>
+												{aiImpact.map((entry) => (
+													<Cell
+														key={entry.name}
+														fill={entry.fill}
+													/>
+												))}
+											</RadialBar>
+											<Tooltip
+												content={<RadialTooltip />}
+											/>
+										</RadialBarChart>
+									</ResponsiveContainer>
+								</div>
+
+								<div className="mt-3 flex items-center justify-between gap-2">
+									{aiImpact.map((seg) => (
+										<div
+											key={seg.name}
+											className="flex items-center gap-2 font-ubuntu text-xs text-shark-300"
+										>
+											<span
+												className="w-2.5 h-2.5 rounded-full"
+												style={{
+													backgroundColor: seg.fill,
+													boxShadow: `0 0 8px ${seg.fill}`,
+												}}
+											/>
+											{seg.name}
+											<span className="text-shark-500">
+												{seg.value}%
 											</span>
 										</div>
-										<span className="font-semibold text-shark-100">
-											{seg.value}%
-										</span>
-									</div>
-								))}
-							</div>
-						</Card>
-					</motion.div>
-				</section>
-
-				{/* Footer hint */}
-				<p className="mt-8 text-center text-xs text-shark-500 font-ubuntu">
-					Data shown is illustrative. Wire up Supabase queries to{" "}
-					<code>jobs</code>, <code>job_skill_mapping</code>, and{" "}
-					<code>job_risk</code> to go live.
-				</p>
+									))}
+								</div>
+							</Card>
+						</motion.div>
+					</div>
+				</motion.div>
 			</main>
-		</motion.div>
+
+			<div className="fixed top-0 left-0">
+				<EnterpriseSidebar />
+			</div>
+		</div>
 	);
 }
-
-export default EnterpriseDashboard;

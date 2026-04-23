@@ -1,7 +1,8 @@
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useEffect } from "react";
 import "../index.css";
 import { motion, AnimatePresence } from "framer-motion";
 import JobSeekerSidebar from "../components/JobSeekerSidebar";
+import { supabase } from "../lib/supabaseClient";
 import {
 	ChevronDown,
 	Search,
@@ -17,85 +18,6 @@ import {
 	ListboxOptions,
 } from "@headlessui/react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-
-// ---------- Dummy data (unchanged) ----------
-const DUMMY_JOB_SECTORS = [
-	{
-		label: "AI/ML Engineer",
-		skills: [
-			{ name: "Python", priority: 92, aiImpact: 35, owned: true },
-			{
-				name: "Machine Learning",
-				priority: 88,
-				aiImpact: 78,
-				owned: false,
-			},
-			{ name: "TensorFlow", priority: 82, aiImpact: 72, owned: true },
-			{ name: "Data Analysis", priority: 85, aiImpact: 45, owned: false },
-			{
-				name: "Neural Networks",
-				priority: 90,
-				aiImpact: 88,
-				owned: false,
-			},
-		],
-	},
-	{
-		label: "Full Stack Developer",
-		skills: [
-			{ name: "React", priority: 95, aiImpact: 28, owned: true },
-			{ name: "Node.js", priority: 90, aiImpact: 32, owned: true },
-			{ name: "PostgreSQL", priority: 88, aiImpact: 25, owned: false },
-			{ name: "Docker", priority: 80, aiImpact: 42, owned: false },
-			{ name: "TypeScript", priority: 87, aiImpact: 18, owned: true },
-		],
-	},
-	{
-		label: "Data Scientist",
-		skills: [
-			{ name: "Python", priority: 94, aiImpact: 35, owned: true },
-			{ name: "Statistics", priority: 89, aiImpact: 52, owned: false },
-			{ name: "Pandas", priority: 91, aiImpact: 38, owned: true },
-			{ name: "SQL", priority: 85, aiImpact: 22, owned: false },
-			{
-				name: "Data Visualization",
-				priority: 83,
-				aiImpact: 15,
-				owned: false,
-			},
-		],
-	},
-	{
-		label: "Cloud Architect",
-		skills: [
-			{ name: "AWS", priority: 93, aiImpact: 48, owned: false },
-			{ name: "Kubernetes", priority: 88, aiImpact: 52, owned: false },
-			{
-				name: "Infrastructure as Code",
-				priority: 85,
-				aiImpact: 35,
-				owned: false,
-			},
-			{ name: "DevOps", priority: 90, aiImpact: 45, owned: true },
-			{ name: "Terraform", priority: 82, aiImpact: 40, owned: false },
-		],
-	},
-	{
-		label: "Product Manager",
-		skills: [
-			{
-				name: "Product Strategy",
-				priority: 92,
-				aiImpact: 55,
-				owned: false,
-			},
-			{ name: "User Research", priority: 87, aiImpact: 28, owned: true },
-			{ name: "Analytics", priority: 85, aiImpact: 38, owned: true },
-			{ name: "Agile", priority: 88, aiImpact: 18, owned: true },
-			{ name: "Data Analysis", priority: 83, aiImpact: 42, owned: false },
-		],
-	},
-];
 
 // ---------- Compact circular meter ----------
 function CompactMeter({ value, color, label }) {
@@ -190,7 +112,7 @@ function SkillCard({ skill, index }) {
 									: "text-shark-300"
 							}`}
 						>
-							{skill.owned ? "Owned" : "Learn"}
+							{skill.owned ? "OWNED" : "LEARN"}
 						</span>
 					</motion.div>
 				</div>
@@ -216,17 +138,135 @@ function SkillCard({ skill, index }) {
 
 // ---------- Page ----------
 function Recommendations() {
-	const [selectedSector, setSelectedSector] = useState(null);
-	const [sectorSearch, setSectorSearch] = useState("");
+	const [jobs, setJobs] = useState([]);
+	const [selectedJob, setSelectedJob] = useState(null);
+	const [jobSearch, setJobSearch] = useState("");
+	const [skillsData, setSkillsData] = useState([]);
+	const [loading, setLoading] = useState(false);
+	const [userId, setUserId] = useState(null);
 
-	const filteredSectors = useMemo(() => {
-		if (!sectorSearch.trim()) return DUMMY_JOB_SECTORS;
-		return DUMMY_JOB_SECTORS.filter((s) =>
-			s.label.toLowerCase().includes(sectorSearch.toLowerCase()),
+	// Get current user
+	useEffect(() => {
+		const getCurrentUser = async () => {
+			const {
+				data: { user },
+			} = await supabase.auth.getUser();
+			if (user) setUserId(user.id);
+		};
+		getCurrentUser();
+	}, []);
+
+	// Fetch jobs on component mount
+	useEffect(() => {
+		const fetchJobs = async () => {
+			try {
+				const { data, error } = await supabase
+					.from("jobs")
+					.select("job_id, job_title")
+					.order("job_title", { ascending: true });
+
+				if (error) throw error;
+				setJobs(data || []);
+			} catch (err) {
+				console.error("Error fetching jobs:", err);
+			}
+		};
+
+		fetchJobs();
+	}, []);
+
+	// Fetch skills for selected job
+	useEffect(() => {
+		if (!selectedJob || !userId) {
+			setSkillsData([]);
+			return;
+		}
+
+		const fetchSkillsForJob = async () => {
+			setLoading(true);
+			try {
+				// Get top 10 skills by demand for this job
+				const { data: skillMappings, error: mappingError } =
+					await supabase
+						.from("job_skill_mapping")
+						.select("skill_id, skill_demand")
+						.eq("job_id", selectedJob.job_id)
+						.order("skill_demand", { ascending: false })
+						.limit(10);
+
+				if (mappingError) throw mappingError;
+
+				// Get skill names and AI impact
+				const skillsWithDetails = await Promise.all(
+					(skillMappings || []).map(async (mapping) => {
+						// Get skill name
+						const { data: skillData, error: skillError } =
+							await supabase
+								.from("skills")
+								.select("skill_name")
+								.eq("skill_id", mapping.skill_id)
+								.single();
+
+						if (skillError)
+							console.error("Error fetching skill:", skillError);
+
+						// Get AI impact
+						const { data: riskData, error: riskError } =
+							await supabase
+								.from("skill_risk")
+								.select("ai_impact")
+								.eq("skill_id", mapping.skill_id)
+								.single();
+
+						if (riskError)
+							console.error("Error fetching risk:", riskError);
+
+						// Check if user owns this skill
+						const { data: userSkill, error: userSkillError } =
+							await supabase
+								.from("skillsets")
+								.select("id")
+								.eq("user_id", userId)
+								.eq("skill_id", mapping.skill_id)
+								.single();
+
+						if (
+							userSkillError &&
+							userSkillError.code !== "PGRST116"
+						) {
+							console.error(
+								"Error checking user skill:",
+								userSkillError,
+							);
+						}
+
+						return {
+							name: skillData?.skill_name || mapping.skill_id,
+							priority: mapping.skill_demand,
+							aiImpact: riskData?.ai_impact || 0,
+							owned: !!userSkill,
+						};
+					}),
+				);
+
+				setSkillsData(skillsWithDetails);
+			} catch (err) {
+				console.error("Error fetching skills data:", err);
+				setSkillsData([]);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchSkillsForJob();
+	}, [selectedJob, userId]);
+
+	const filteredJobs = useMemo(() => {
+		if (!jobSearch.trim()) return jobs;
+		return jobs.filter((j) =>
+			j.job_title.toLowerCase().includes(jobSearch.toLowerCase()),
 		);
-	}, [sectorSearch]);
-
-	const recommendations = selectedSector?.skills ?? [];
+	}, [jobs, jobSearch]);
 
 	return (
 		<motion.div
@@ -257,10 +297,10 @@ function Recommendations() {
 					className="w-full max-w-3xl mx-auto shrink-0"
 				>
 					<Listbox
-						value={selectedSector}
+						value={selectedJob}
 						onChange={(val) => {
-							setSelectedSector(val);
-							setSectorSearch("");
+							setSelectedJob(val);
+							setJobSearch("");
 						}}
 					>
 						{({ open }) => (
@@ -269,7 +309,7 @@ function Recommendations() {
 									<motion.button
 										layout
 										className={`w-full px-5 py-4 border-2 rounded-xl text-left flex items-center justify-between bg-shark-950 font-ubuntu font-bold text-base focus:outline-none transition-colors ${
-											open || selectedSector
+											open || selectedJob
 												? "border-aqua-island-500"
 												: "border-aqua-island-500/40"
 										}`}
@@ -280,13 +320,13 @@ function Recommendations() {
 									>
 										<span
 											className={
-												selectedSector
+												selectedJob
 													? "text-shark-100"
 													: "text-shark-500"
 											}
 										>
-											{selectedSector
-												? selectedSector.label
+											{selectedJob
+												? selectedJob.job_title
 												: "Select job sector"}
 										</span>
 										<motion.div
@@ -318,9 +358,9 @@ function Recommendations() {
 													<input
 														type="text"
 														placeholder="Search job title..."
-														value={sectorSearch}
+														value={jobSearch}
 														onChange={(e) =>
-															setSectorSearch(
+															setJobSearch(
 																e.target.value,
 															)
 														}
@@ -336,45 +376,40 @@ function Recommendations() {
 											</div>
 
 											<div className="max-h-64 overflow-y-auto pb-2 scrollbar-hide">
-												{filteredSectors.length ===
-												0 ? (
+												{filteredJobs.length === 0 ? (
 													<li className="px-5 py-4 text-shark-500 font-ubuntu text-sm">
 														No results found.
 													</li>
 												) : (
-													filteredSectors.map(
-														(sector) => (
-															<ListboxOption
-																key={
-																	sector.label
-																}
-																value={sector}
-																as={Fragment}
-															>
-																{({
-																	active,
-																	selected,
-																}) => (
-																	<li
-																		className={`flex items-center justify-between px-5 py-3 text-sm font-ubuntu cursor-pointer transition-colors ${
-																			active
-																				? "bg-aqua-island-500/10 text-shark-100"
-																				: "text-shark-200"
-																		} ${selected ? "font-bold text-aqua-island-400" : ""}`}
-																	>
-																		<span>
-																			{
-																				sector.label
-																			}
-																		</span>
-																		{selected && (
-																			<Check className="w-4 h-4 text-aqua-island-400" />
-																		)}
-																	</li>
-																)}
-															</ListboxOption>
-														),
-													)
+													filteredJobs.map((job) => (
+														<ListboxOption
+															key={job.job_id}
+															value={job}
+															as={Fragment}
+														>
+															{({
+																active,
+																selected,
+															}) => (
+																<li
+																	className={`flex items-center justify-between px-5 py-3 text-sm font-ubuntu cursor-pointer transition-colors ${
+																		active
+																			? "bg-aqua-island-500/10 text-shark-100"
+																			: "text-shark-200"
+																	} ${selected ? "font-bold text-aqua-island-400" : ""}`}
+																>
+																	<span>
+																		{
+																			job.job_title
+																		}
+																	</span>
+																	{selected && (
+																		<Check className="w-4 h-4 text-aqua-island-400" />
+																	)}
+																</li>
+															)}
+														</ListboxOption>
+													))
 												)}
 											</div>
 										</ListboxOptions>
@@ -388,7 +423,7 @@ function Recommendations() {
 				{/* Card area */}
 				<div className="flex-1 min-h-0 max-h-195">
 					<AnimatePresence mode="wait">
-						{!selectedSector ? (
+						{!selectedJob ? (
 							<motion.div
 								key="empty"
 								initial={{ opacity: 0, scale: 0.98 }}
@@ -417,7 +452,7 @@ function Recommendations() {
 							</motion.div>
 						) : (
 							<motion.div
-								key={selectedSector.label}
+								key={selectedJob.job_id}
 								initial={{ opacity: 0, scale: 0.98 }}
 								animate={{ opacity: 1, scale: 1 }}
 								exit={{ opacity: 0, scale: 0.98 }}
@@ -433,7 +468,7 @@ function Recommendations() {
 										/>
 										<div>
 											<h2 className="text-lg font-bold font-ubuntu text-shark-100">
-												{selectedSector.label}
+												{selectedJob.job_title}
 											</h2>
 											<p className="text-xs font-ubuntu text-shark-500 mt-0.5">
 												Recommended skills & AI impact
@@ -446,19 +481,23 @@ function Recommendations() {
 										transition={{ delay: 0.1 }}
 										className="px-3.5 py-1.5 rounded-full text-xs font-ubuntu font-bold uppercase tracking-widest border border-aqua-island-500/40 bg-aqua-island-500/10 text-aqua-island-400"
 									>
-										{recommendations.length} Skills
+										{skillsData.length} Skills
 									</motion.div>
 								</div>
 
 								{/* Card body — recommendations list */}
 								<div className="flex-1 min-h-0 p-5">
 									<div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide pr-1">
-										{recommendations.length > 0 ? (
+										{loading ? (
+											<div className="h-full flex items-center justify-center text-shark-400 font-ubuntu font-bold text-base">
+												Loading skills...
+											</div>
+										) : skillsData.length > 0 ? (
 											<div className="grid gap-3">
-												{recommendations.map(
+												{skillsData.map(
 													(skill, idx) => (
 														<SkillCard
-															key={`${selectedSector.label}-${skill.name}-${idx}`}
+															key={`${selectedJob.job_id}-${skill.name}-${idx}`}
 															skill={skill}
 															index={idx}
 														/>

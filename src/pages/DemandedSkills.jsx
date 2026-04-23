@@ -201,7 +201,7 @@ function DemandedSkills() {
 
 		const doc = new jsPDF("p", "mm", "a4");
 
-		doc.setFont("Helvetica", "bold");
+		doc.setFont("Ubuntu", "bold");
 		doc.setFontSize(22);
 		doc.text(`${selectedSector.label} Demanded Skills Report`, 105, 20, {
 			align: "center",
@@ -219,7 +219,7 @@ function DemandedSkills() {
 			body: tableRows,
 			theme: "grid",
 			styles: {
-				font: "helvetica",
+				font: "Ubuntu",
 				fontStyle: "normal",
 				fontSize: 14,
 				halign: "center",
@@ -229,7 +229,7 @@ function DemandedSkills() {
 				lineWidth: 0.3,
 			},
 			headStyles: {
-				font: "helvetica",
+				font: "Ubuntu",
 				fontStyle: "bold",
 				fontSize: 16,
 				fillColor: [229, 29, 41],
@@ -238,7 +238,7 @@ function DemandedSkills() {
 				valign: "middle",
 			},
 			bodyStyles: {
-				font: "helvetica",
+				font: "Ubuntu",
 				fontStyle: "normal",
 				halign: "center",
 				valign: "middle",

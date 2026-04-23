@@ -20,6 +20,8 @@ import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import JobSeekerHome from "./pages/JobSeekerHome";
 import EnterpriseHome from "./pages/EnterpriseHome";
 import JobSectorsEnterprise from "./pages/JobSectorsEnterprise";
+import JobSectorsAdmin from "./pages/JobSectorsAdmin";
+import SkillsAdmin from "./pages/SkillsAdmin";
 
 function App() {
 	const [session, setSession] = useState(null);
@@ -364,10 +366,32 @@ function App() {
 				/>
 
 				<Route
-					path="/admin/panel"
+					path="/admin/users"
 					element={
 						session && userRole === "admin" ? (
 							<AdminPanel />
+						) : (
+							<Navigate to="/" replace />
+						)
+					}
+				/>
+
+				<Route
+					path="/admin/job-sectors"
+					element={
+						session && userRole === "admin" ? (
+							<JobSectorsAdmin />
+						) : (
+							<Navigate to="/" replace />
+						)
+					}
+				/>
+
+				<Route
+					path="/admin/skills"
+					element={
+						session && userRole === "admin" ? (
+							<SkillsAdmin />
 						) : (
 							<Navigate to="/" replace />
 						)

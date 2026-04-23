@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,22 +12,13 @@ import {
 	ChevronDown,
 	Search,
 	Check,
-	BrainCircuit,
 	Activity,
 	Gauge,
 	BriefcaseBusiness,
 } from "lucide-react";
 import "../index.css";
 import EnterpriseSidebar from "../components/EnterpriseSidebar";
-
-// ---------- Dummy data ----------
-const DUMMY_SECTORS = [
-	{ label: "Data Entry Clerk", aiImpact: 88 },
-	{ label: "Software Engineer", aiImpact: 54 },
-	{ label: "Data Scientist", aiImpact: 72 },
-	{ label: "Graphic Designer", aiImpact: 41 },
-	{ label: "Registered Nurse", aiImpact: 18 },
-];
+import { supabase } from "../lib/supabaseClient";
 
 // ---------- Helpers ----------
 function getImpactBucket(value) {
@@ -166,13 +157,42 @@ function JobSectorsEnterprise() {
 	const navigate = useNavigate();
 	const [selectedSector, setSelectedSector] = useState(null);
 	const [sectorSearch, setSectorSearch] = useState("");
+	const [sectors, setSectors] = useState([]);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		const fetchSectors = async () => {
+			const { data, error } = await supabase
+				.from("jobs")
+				.select("job_id, job_title, job_risk(ai_impact)")
+				.order("job_title");
+
+			if (error) {
+				console.error("Error fetching sectors:", error);
+				setLoading(false);
+				return;
+			}
+
+			const formattedSectors = data.map((item) => ({
+				label: item.job_title,
+				aiImpact: item.job_risk?.ai_impact || 0,
+				job_id: item.job_id,
+			}));
+
+			setSectors(formattedSectors);
+			setLoading(false);
+		};
+
+		fetchSectors();
+	}, []);
 
 	const filteredSectors = useMemo(() => {
-		if (!sectorSearch.trim()) return DUMMY_SECTORS;
-		return DUMMY_SECTORS.filter((s) =>
+		if (loading) return [];
+		if (!sectorSearch.trim()) return sectors;
+		return sectors.filter((s) =>
 			s.label.toLowerCase().includes(sectorSearch.toLowerCase()),
 		);
-	}, [sectorSearch]);
+	}, [sectorSearch, sectors, loading]);
 
 	const meta = selectedSector ? getImpactMeta(selectedSector.aiImpact) : null;
 
@@ -214,6 +234,7 @@ function JobSectorsEnterprise() {
 							setSelectedSector(val);
 							setSectorSearch("");
 						}}
+						disabled={loading}
 					>
 						{({ open }) => (
 							<div className="relative">
@@ -239,7 +260,9 @@ function JobSectorsEnterprise() {
 										>
 											{selectedSector
 												? selectedSector.label
-												: "Select job sector"}
+												: loading
+													? "Loading job sectors..."
+													: "Select job sector"}
 										</span>
 										<motion.div
 											animate={{ rotate: open ? 180 : 0 }}
@@ -288,8 +311,12 @@ function JobSectorsEnterprise() {
 											</div>
 
 											<div className="max-h-56 overflow-y-auto pb-2 scrollbar-hide">
-												{filteredSectors.length ===
-												0 ? (
+												{loading ? (
+													<li className="px-5 py-4 text-shark-500 font-ubuntu text-sm">
+														Loading job sectors...
+													</li>
+												) : filteredSectors.length ===
+												  0 ? (
 													<li className="px-5 py-4 text-shark-500 font-ubuntu text-sm">
 														No results found.
 													</li>
@@ -298,7 +325,7 @@ function JobSectorsEnterprise() {
 														(sector) => (
 															<ListboxOption
 																key={
-																	sector.label
+																	sector.job_id
 																}
 																value={sector}
 																as={Fragment}
@@ -351,7 +378,7 @@ function JobSectorsEnterprise() {
 							>
 								<div className="flex flex-col items-center text-center px-8">
 									<div className="w-20 h-20 rounded-2xl bg-red-ribbon-500/10 border border-red-ribbon-500/30 flex items-center justify-center mb-5">
-										<BrainCircuit
+										<BriefcaseBusiness
 											size={36}
 											className="text-red-ribbon-500"
 										/>
